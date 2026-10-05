@@ -1,7 +1,7 @@
 const bands = [
-  { label: 'Low orbit', angle: '10–25°', note: 'Capture undersides, base transitions, and low silhouette changes.' },
-  { label: 'Mid orbit', angle: '35–55°', note: 'Make this the densest ring; keep 60–80% overlap between frames.' },
-  { label: 'High orbit', angle: '65–80°', note: 'Capture top surfaces and features hidden from the mid-level ring.' },
+  { label: 'Low ring', angle: '15–25°', count: '8–12 photos', note: 'Walk one full 360° circle around the stationary object.' },
+  { label: 'Middle ring', angle: '35–50°', count: '12–18 photos', note: 'Make this the densest 360° ring.' },
+  { label: 'High ring', angle: '60–75°', count: '8–12 photos', note: 'Complete another 360° ring to cover upper surfaces.' },
 ]
 
 export default function Instructions() {
@@ -9,9 +9,10 @@ export default function Instructions() {
     <section className="space-y-6">
       <div>
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Step 1</p>
-        <h2 className="mt-2 text-2xl font-semibold text-slate-950">Capture an orbital photo set</h2>
+        <h2 className="mt-2 text-2xl font-semibold text-slate-950">Capture three orbital rings</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          Take 20–50 overlapping photographs around the object. Keep lighting, zoom, and object position as constant as possible.
+          Keep the object still. Walk three complete 360° rings around it, always aiming near its center.
+          Keep the same zoom and roughly the same camera distance so the object stays about the same size in every frame.
         </p>
       </div>
 
@@ -33,16 +34,22 @@ export default function Instructions() {
               })}
             </div>
             <h3 className="font-semibold text-slate-900">{band.label}</h3>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{band.count}</p>
             <p className="mt-2 text-sm leading-6 text-slate-600">{band.note}</p>
           </article>
         ))}
       </div>
 
-      <div className="grid gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950 md:grid-cols-3">
-        <div><strong>Overlap:</strong> 60–80% between neighboring images.</div>
-        <div><strong>Background:</strong> Prefer texture and avoid reflective clutter.</div>
-        <div><strong>Object:</strong> Do not move it between photographs.</div>
+      <div className="grid gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950 md:grid-cols-2 lg:grid-cols-4">
+        <div><strong>Overlap:</strong> 60–80% with neighboring photos.</div>
+        <div><strong>Zoom:</strong> Keep focal length fixed; do not zoom between shots.</div>
+        <div><strong>Top:</strong> Add 1–4 top-down photos if the high ring does not cover it.</div>
+        <div><strong>Bottom:</strong> Optional; capture the underside as a separate set if needed.</div>
       </div>
+
+      <p className="text-xs leading-5 text-slate-500">
+        Current v0.1.x note: SnapFold validates and previews the photo set locally, but does not yet reconstruct the real surface from image pixels.
+      </p>
     </section>
   )
 }

@@ -81,7 +81,7 @@ export default function App() {
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 lg:px-8">
           <div>
             <div className="text-lg font-bold tracking-tight text-slate-950">SnapFold</div>
-            <div className="text-xs text-slate-500">Static papercraft unfolding prototype · v0.1.0</div>
+            <div className="text-xs text-slate-500">Static papercraft unfolding prototype · v0.1.1</div>
           </div>
           <div className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800">Browser-only processing</div>
         </div>

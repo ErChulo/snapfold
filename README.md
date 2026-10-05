@@ -1,10 +1,41 @@
 # SnapFold
 
+[![Deploy SnapFold to GitHub Pages](https://github.com/ErChulo/snapfold/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/ErChulo/snapfold/actions/workflows/deploy.yml)
+[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-live-brightgreen)](https://erchulo.github.io/snapfold/)
+![Version](https://img.shields.io/badge/version-v0.1.1-blue)
+![Browser only](https://img.shields.io/badge/processing-browser--only-6f42c1)
+
+**Live app:** https://erchulo.github.io/snapfold/
+
 SnapFold is a browser-only React/Vite prototype for turning an orbital photo set into a printable papercraft-style unfolding template. It is designed for static hosting on GitHub Pages and performs photo handling, HEIC preview conversion, geometric net generation, and PDF export entirely in the browser.
+
+## Capture protocol
+
+For a normal object, use **three complete 360° rings** around a stationary object. Aim the camera near the object's center throughout the capture.
+
+| Pass | Camera elevation | Suggested photos | What to do |
+| --- | ---: | ---: | --- |
+| Low ring | 15–25° | 8–12 | Walk one complete circle around the object. |
+| Middle ring | 35–50° | 12–18 | Walk one complete circle; make this the densest ring. |
+| High ring | 60–75° | 8–12 | Walk one complete circle to cover upper surfaces. |
+| Top | near top-down | 1–4 | Add only when the high ring does not adequately show the top. |
+
+Practical rules:
+
+- **Overlap:** target 60–80% overlap between neighboring images.
+- **Distance:** keep roughly the same camera-to-object radius so the object remains about the same size in the frame. Exact distance need not be mathematically constant.
+- **Zoom/focal length:** keep it fixed. Do not zoom between photographs.
+- **Object:** do not move or rotate it during the main capture.
+- **Camera aim:** keep the object near the center of the image.
+- **Lighting/exposure:** keep them as stable as practical; avoid strong moving reflections or shadows.
+- **Background:** some visual texture helps feature matching; a blank glossy background is less useful.
+- **Bottom/underside:** optional. If the underside matters, photograph it as a separate capture set that can later be registered to the main reconstruction.
+
+Geometrically, the preferred camera locations approximate three latitude rings on a sphere or ellipsoid around the object, rather than a single horizontal cylinder.
 
 ## What the prototype does
 
-1. Explains how to capture 20–50 overlapping low-, mid-, and high-angle photographs.
+1. Gives a concise three-ring orbital capture recipe.
 2. Accepts JPG, PNG, HEIC, and HEIF files using local browser file APIs.
 3. Derives a manageable faceted prism proxy from the photo count.
 4. Displays the proxy mesh in Three.js / React Three Fiber.
@@ -15,7 +46,23 @@ SnapFold is a browser-only React/Vite prototype for turning an orbital photo set
 
 ## Important prototype boundary
 
-SnapFold does **not** perform photogrammetry or reconstruct arbitrary 3D geometry from image pixels. The current static frontend uses the number of input views to parameterize an algorithmic prism-like proxy. The unfolding and page-layout code is real geometry and is structured so a future mesh-reconstruction stage can replace the proxy generator.
+SnapFold v0.1.x does **not** yet perform photogrammetry or reconstruct arbitrary 3D geometry from image pixels. The current static frontend uses the number of input views to parameterize an algorithmic prism-like proxy.
+
+The intended development path is:
+
+```text
+orbital photos
+→ feature matching
+→ camera-pose estimation
+→ 3D reconstruction
+→ smooth/curvature-aware surface model
+→ developable panelization and strategic seams
+→ glue tabs
+→ printable PDF
+→ photographic color/texture projection
+```
+
+The long-term goal is **not** a visibly low-poly model. Polygon meshes may remain an internal numerical representation, while the printable model can use curvature-aware seam placement, smooth bends, and curved panel boundaries where the paper geometry permits them.
 
 ## Stack
 
@@ -24,6 +71,7 @@ SnapFold does **not** perform photogrammetry or reconstruct arbitrary 3D geometr
 - Three.js via `@react-three/fiber` and `@react-three/drei`
 - `heic2any` for browser-side HEIC/HEIF preview conversion
 - `jsPDF` for vector Letter-size PDF generation
+- GitHub Actions + GitHub Pages for automatic static deployment
 
 ## Local development
 
@@ -53,16 +101,7 @@ On every push to `main`, the workflow:
 
 `vite.config.js` derives the GitHub repository name from the `GITHUB_REPOSITORY` environment variable, so the production `base` becomes `/<repository-name>/` automatically. Local development continues to use `/`.
 
-### One-time GitHub Pages setting
-
-After the workflow creates the `gh-pages` branch for the first time:
-
-1. Open **Repository → Settings → Pages**.
-2. Under **Build and deployment**, choose **Deploy from a branch**.
-3. Select branch **gh-pages** and folder **/(root)**.
-4. Save.
-
-The workflow requires `contents: write`, which is declared in `deploy.yml`. If repository policy blocks that permission, enable write access for Actions under **Settings → Actions → General → Workflow permissions**.
+GitHub Pages is configured to publish from `gh-pages` at `/(root)`. The workflow declares `contents: write`, which is required to update the deployment branch.
 
 ## Geometry conventions
 
@@ -84,6 +123,22 @@ The page model uses physical inch units:
 - Figure scale: 10–100% of the largest non-overflowing fit
 
 The same transform is used by both the preview renderer and the PDF exporter.
+
+## Verified v0.1.x smoke test
+
+The live application has been manually exercised through:
+
+```text
+photo selection
+→ local thumbnail preview
+→ 3D viewport
+→ 2D Letter preview
+→ flattening metrics
+→ adhesive-tab stage
+→ PDF export
+```
+
+The generated PDF was confirmed to download and open successfully.
 
 ## Project structure
 
@@ -118,4 +173,4 @@ SnapFold/
 
 ## Next engineering step
 
-Replace `createPrismNet()` with an adapter that consumes a real indexed mesh (`vertices`, `faces`, and adjacency). The page-fit, cut/fold rendering, tab generation, collision logic, and PDF export can then remain largely unchanged.
+Replace `createPrismNet()` with a real browser-side reconstruction adapter. Preserve the working page-fit, engineering-line rendering, glue-tab generation, collision logic, PDF export, and static GitHub Pages deployment while progressively replacing the synthetic proxy with photo-derived geometry.
