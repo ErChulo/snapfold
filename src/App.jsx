@@ -76,22 +76,22 @@ export default function App() {
   }[currentStep]
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white/95">
+    <div className="min-h-screen bg-black text-zinc-100">
+      <header className="border-b border-zinc-800 bg-black/95">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 lg:px-8">
           <div>
-            <div className="text-lg font-bold tracking-tight text-slate-950">SnapFold</div>
-            <div className="text-xs text-slate-500">Static papercraft unfolding prototype · v0.1.1</div>
+            <div className="text-lg font-bold tracking-tight text-white">SnapFold</div>
+            <div className="text-xs text-zinc-500">Static papercraft unfolding prototype · v0.1.2</div>
           </div>
-          <div className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800">Browser-only processing</div>
+          <div className="rounded-full border border-emerald-900 bg-emerald-950/50 px-3 py-1.5 text-xs font-semibold text-emerald-300">Browser-only processing</div>
         </div>
       </header>
 
       <main className="mx-auto max-w-7xl px-5 py-6 lg:px-8 lg:py-8">
         <Stepper currentStep={currentStep} onStep={setCurrentStep} />
 
-        <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-1">
-          <div className="rounded-[22px] bg-white p-5 shadow-sm sm:p-7 lg:p-8">{stepContent}</div>
+        <div className="mt-6 rounded-3xl border border-zinc-800 bg-zinc-950 p-1">
+          <div className="rounded-[22px] bg-zinc-950 p-5 shadow-sm sm:p-7 lg:p-8">{stepContent}</div>
         </div>
 
         <div className="mt-5 flex items-center justify-between gap-4">
@@ -99,16 +99,16 @@ export default function App() {
             type="button"
             disabled={currentStep === 1}
             onClick={() => setCurrentStep((step) => Math.max(1, step - 1))}
-            className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-zinc-200 transition hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Back
           </button>
-          <div className="text-xs text-slate-500">Step {currentStep} of {LAST_STEP}</div>
+          <div className="text-xs text-zinc-500">Step {currentStep} of {LAST_STEP}</div>
           <button
             type="button"
             disabled={currentStep === LAST_STEP}
             onClick={() => setCurrentStep((step) => Math.min(LAST_STEP, step + 1))}
-            className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Continue
           </button>

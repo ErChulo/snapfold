@@ -2,12 +2,12 @@
 
 [![Deploy SnapFold to GitHub Pages](https://github.com/ErChulo/snapfold/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/ErChulo/snapfold/actions/workflows/deploy.yml)
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-live-brightgreen)](https://erchulo.github.io/snapfold/)
-![Version](https://img.shields.io/badge/version-v0.1.1-blue)
+![Version](https://img.shields.io/badge/version-v0.1.2-blue)
 ![Browser only](https://img.shields.io/badge/processing-browser--only-6f42c1)
 
 **Live app:** https://erchulo.github.io/snapfold/
 
-SnapFold is a browser-only React/Vite prototype for turning an orbital photo set into a printable papercraft-style unfolding template. It is designed for static hosting on GitHub Pages and performs photo handling, HEIC preview conversion, geometric net generation, and PDF export entirely in the browser.
+SnapFold is a browser-only React/Vite prototype for turning an orbital photo set into a printable papercraft-style unfolding template. It is designed for static hosting on GitHub Pages and performs photo handling, HEIC preview conversion, geometric net generation, and PDF export entirely in the browser. The v0.1.2 application shell uses a true `#000000` dark background while keeping the physical Letter-paper preview and exported PDF white.
 
 ## Capture protocol
 
