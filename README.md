@@ -1,13 +1,15 @@
 # SnapFold
 
+<p align="center"><img src="public/brand/snapfold-logo.svg" alt="SnapFold" width="620"></p>
+
 [![Deploy SnapFold to GitHub Pages](https://github.com/ErChulo/snapfold/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/ErChulo/snapfold/actions/workflows/deploy.yml)
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-live-brightgreen)](https://erchulo.github.io/snapfold/)
-![Version](https://img.shields.io/badge/version-v0.1.2-blue)
+![Version](https://img.shields.io/badge/version-v0.1.3-blue)
 ![Browser only](https://img.shields.io/badge/processing-browser--only-6f42c1)
 
 **Live app:** https://erchulo.github.io/snapfold/
 
-SnapFold is a browser-only React/Vite prototype for turning an orbital photo set into a printable papercraft-style unfolding template. It is designed for static hosting on GitHub Pages and performs photo handling, HEIC preview conversion, geometric net generation, and PDF export entirely in the browser. The v0.1.2 application shell uses a true `#000000` dark background while keeping the physical Letter-paper preview and exported PDF white.
+SnapFold is a browser-only React/Vite prototype for turning an orbital photo set into a printable papercraft-style unfolding template. It is designed for static hosting on GitHub Pages and performs photo handling, HEIC preview conversion, geometric net generation, and PDF export entirely in the browser. The application shell uses a true `#000000` dark background while keeping the physical Letter-paper preview and exported PDF white. v0.1.3 adds the SnapFold impossible-geometry visual identity, derived from the selected interlocking S/F cube concept.
 
 ## Capture protocol
 
@@ -63,6 +65,16 @@ orbital photos
 ```
 
 The long-term goal is **not** a visibly low-poly model. Polygon meshes may remain an internal numerical representation, while the printable model can use curvature-aware seam placement, smooth bends, and curved panel boundaries where the paper geometry permits them.
+
+## Brand assets
+
+The production UI uses scalable SVG derivatives of the selected impossible-geometry concept:
+
+- `public/brand/snapfold-logo.svg` — horizontal lockup
+- `public/brand/snapfold-mark.svg` — standalone impossible S/F mark
+- `public/brand/snapfold-wordmark.svg` — wordmark
+- `public/brand/snapfold-icon.svg` — rounded app icon
+- `public/favicon.svg` — browser favicon
 
 ## Stack
 
@@ -145,6 +157,14 @@ The generated PDF was confirmed to download and open successfully.
 ```text
 SnapFold/
 ├── .github/workflows/deploy.yml
+├── public/
+│   ├── brand/
+│   │   ├── snapfold-icon.svg
+│   │   ├── snapfold-logo.svg
+│   │   ├── snapfold-mark.svg
+│   │   └── snapfold-wordmark.svg
+│   ├── favicon.svg
+│   └── site.webmanifest
 ├── src/
 │   ├── components/
 │   │   ├── AdhesiveStep.jsx

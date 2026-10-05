@@ -79,9 +79,12 @@ export default function App() {
     <div className="min-h-screen bg-black text-zinc-100">
       <header className="border-b border-zinc-800 bg-black/95">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 lg:px-8">
-          <div>
-            <div className="text-lg font-bold tracking-tight text-white">SnapFold</div>
-            <div className="text-xs text-zinc-500">Static papercraft unfolding prototype · v0.1.2</div>
+          <div className="flex items-center gap-3">
+            <img src={`${import.meta.env.BASE_URL}brand/snapfold-mark.svg`} alt="" className="h-11 w-11 shrink-0" />
+            <div>
+              <div className="text-lg font-bold tracking-tight text-white">SnapFold</div>
+              <div className="text-xs text-zinc-500">Static papercraft unfolding prototype · v0.1.3</div>
+            </div>
           </div>
           <div className="rounded-full border border-emerald-900 bg-emerald-950/50 px-3 py-1.5 text-xs font-semibold text-emerald-300">Browser-only processing</div>
         </div>
