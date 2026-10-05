@@ -10,7 +10,7 @@ function PrototypeMesh({ sides }) {
       </mesh>
       <mesh>
         <cylinderGeometry args={[1.055, 0.865, 2.405, sides, 1, false]} />
-        <meshBasicMaterial color="#18181b" wireframe transparent opacity={0.5} />
+        <meshBasicMaterial color="#71717a" wireframe transparent opacity={0.5} />
       </mesh>
     </group>
   )
