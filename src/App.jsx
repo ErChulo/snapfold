@@ -225,7 +225,7 @@ export default function App() {
             <div>
               <div className="text-lg font-bold tracking-tight text-white">SnapFold</div>
               <div className="text-xs text-zinc-500">
-                {desktopMode ? 'Native COLMAP reconstruction' : 'Web reconstruction diagnostic'} · v0.3.0-alpha.1
+                {desktopMode ? 'Native COLMAP reconstruction' : 'Web reconstruction diagnostic'} · v0.3.0-alpha.2
               </div>
             </div>
           </div>
