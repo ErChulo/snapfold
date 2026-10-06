@@ -16,6 +16,7 @@ export default function ReconstructionStep({
   reconstructionStatus,
   reconstructionError,
   onRun,
+  onOpenLegacyDemo,
 }) {
   const running = Boolean(reconstructionStatus)
   const progress = reconstructionStatus?.total
@@ -114,11 +115,20 @@ export default function ReconstructionStep({
         </>
       )}
 
-      {!reconstruction && !running && (
-        <div className="rounded-2xl border border-zinc-800 bg-black p-5 text-sm leading-6 text-zinc-500">
-          Alpha target: establish a robust overlap graph and camera network before dense surface reconstruction.
+      <div className="rounded-2xl border border-zinc-800 bg-black p-5 text-sm leading-6 text-zinc-400">
+        <strong className="text-zinc-200">Development boundary:</strong> the photo-derived workflow currently ends here.
+        The old prism/PDF path is retained only as a regression test and is not a reconstruction of your object.
+        <div className="mt-4">
+          <button
+            type="button"
+            disabled={running}
+            onClick={onOpenLegacyDemo}
+            className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-xs font-semibold text-zinc-300 transition hover:bg-zinc-900 disabled:opacity-40"
+          >
+            Open legacy prism demo anyway
+          </button>
         </div>
-      )}
+      </div>
     </section>
   )
 }

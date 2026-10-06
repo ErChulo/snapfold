@@ -13,6 +13,7 @@ import { runSparseReconstruction } from './utils/reconstruction/sparseReconstruc
 import { DEFAULT_MATERIAL_PROFILE } from './utils/materialProfile.js'
 
 const LAST_STEP = 7
+const PHOTO_DERIVED_LAST_STEP = 3
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState(1)
@@ -24,12 +25,15 @@ export default function App() {
   const [reconstruction, setReconstruction] = useState(null)
   const [reconstructionStatus, setReconstructionStatus] = useState(null)
   const [reconstructionError, setReconstructionError] = useState('')
+  const [legacyMode, setLegacyMode] = useState(false)
   const [materialProfile] = useState(() => ({ ...DEFAULT_MATERIAL_PROFILE }))
   const net = useMemo(() => createPrismNet(photos.length || 20), [photos.length])
 
   const invalidateReconstruction = () => {
     setReconstruction(null)
     setReconstructionError('')
+    setLegacyMode(false)
+    if (currentStep > PHOTO_DERIVED_LAST_STEP) setCurrentStep(PHOTO_DERIVED_LAST_STEP)
   }
 
   const addFiles = async (files) => {
@@ -72,6 +76,7 @@ export default function App() {
 
   const runReconstruction = async () => {
     setReconstructionError('')
+    setLegacyMode(false)
     setReconstructionStatus({
       stage: 'initializing',
       current: 0,
@@ -90,6 +95,11 @@ export default function App() {
     } finally {
       setReconstructionStatus(null)
     }
+  }
+
+  const openLegacyDemo = () => {
+    setLegacyMode(true)
+    setCurrentStep(4)
   }
 
   const stepContent = {
@@ -112,13 +122,17 @@ export default function App() {
         reconstructionStatus={reconstructionStatus}
         reconstructionError={reconstructionError}
         onRun={runReconstruction}
+        onOpenLegacyDemo={openLegacyDemo}
       />
     ),
-    4: <Simulation net={net} scalePercent={scalePercent} setScalePercent={setScalePercent} projectName={projectName} />,
+    4: <Simulation net={net} scalePercent={scalePercent} setScalePercent={setScalePercent} projectName={projectName} legacyMode={legacyMode} />,
     5: <FlatteningStep net={net} />,
     6: <AdhesiveStep net={net} />,
     7: <ExportHub projectName={projectName} net={net} scalePercent={scalePercent} />,
   }[currentStep]
+
+  const maxEnabledStep = legacyMode ? LAST_STEP : PHOTO_DERIVED_LAST_STEP
+  const canContinue = currentStep < maxEnabledStep && !reconstructionStatus
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
@@ -128,15 +142,28 @@ export default function App() {
             <img src={`${import.meta.env.BASE_URL}brand/snapfold-mark.svg`} alt="" className="h-11 w-11 shrink-0" />
             <div>
               <div className="text-lg font-bold tracking-tight text-white">SnapFold</div>
-              <div className="text-xs text-zinc-500">Browser reconstruction + papercraft prototype · v0.2.0-alpha.3</div>
+              <div className="text-xs text-zinc-500">Browser reconstruction + papercraft prototype · v0.2.0-alpha.4</div>
             </div>
           </div>
-          <div className="rounded-full border border-emerald-900 bg-emerald-950/50 px-3 py-1.5 text-xs font-semibold text-emerald-300">Browser-only processing</div>
+          <div className="rounded-full border border-emerald-900 bg-emerald-950/50 px-3 py-1.5 text-xs font-semibold text-emerald-300">
+            {legacyMode ? 'Legacy prism demo active' : 'Photo-derived workflow'}
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-7xl px-5 py-6 lg:px-8 lg:py-8">
-        <Stepper currentStep={currentStep} onStep={setCurrentStep} disabled={Boolean(reconstructionStatus)} />
+        <Stepper
+          currentStep={currentStep}
+          onStep={setCurrentStep}
+          disabled={Boolean(reconstructionStatus)}
+          maxEnabledStep={maxEnabledStep}
+        />
+
+        {legacyMode && currentStep >= 4 && (
+          <div className="mt-5 rounded-2xl border border-amber-900 bg-amber-950/25 p-4 text-sm leading-6 text-amber-200">
+            Legacy regression mode: Steps 4–7 use the original synthetic prism and are not derived from your photographs.
+          </div>
+        )}
 
         <div className="mt-6 rounded-3xl border border-zinc-800 bg-zinc-950 p-1">
           <div className="rounded-[22px] bg-zinc-950 p-5 shadow-sm sm:p-7 lg:p-8">{stepContent}</div>
@@ -146,19 +173,28 @@ export default function App() {
           <button
             type="button"
             disabled={currentStep === 1 || Boolean(reconstructionStatus)}
-            onClick={() => setCurrentStep((step) => Math.max(1, step - 1))}
+            onClick={() => {
+              if (currentStep === 4 && legacyMode) {
+                setLegacyMode(false)
+                setCurrentStep(3)
+                return
+              }
+              setCurrentStep((step) => Math.max(1, step - 1))
+            }}
             className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-zinc-200 transition hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Back
           </button>
-          <div className="text-xs text-zinc-500">Step {currentStep} of {LAST_STEP}</div>
+          <div className="text-xs text-zinc-500">
+            {legacyMode ? `Legacy demo · Step ${currentStep} of ${LAST_STEP}` : `Photo-derived workflow · Step ${currentStep} of ${PHOTO_DERIVED_LAST_STEP}`}
+          </div>
           <button
             type="button"
-            disabled={currentStep === LAST_STEP || Boolean(reconstructionStatus)}
-            onClick={() => setCurrentStep((step) => Math.min(LAST_STEP, step + 1))}
+            disabled={!canContinue}
+            onClick={() => setCurrentStep((step) => Math.min(maxEnabledStep, step + 1))}
             className="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Continue
+            {currentStep === PHOTO_DERIVED_LAST_STEP && !legacyMode ? 'Photo-derived next stage not built yet' : 'Continue'}
           </button>
         </div>
       </main>

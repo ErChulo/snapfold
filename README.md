@@ -4,12 +4,12 @@
 
 [![Deploy SnapFold to GitHub Pages](https://github.com/ErChulo/snapfold/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/ErChulo/snapfold/actions/workflows/deploy.yml)
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-live-brightgreen)](https://erchulo.github.io/snapfold/)
-![Version](https://img.shields.io/badge/version-v0.2.0--alpha.3-blue)
+![Version](https://img.shields.io/badge/version-v0.2.0--alpha.4-blue)
 ![Browser only](https://img.shields.io/badge/processing-browser--only-6f42c1)
 
 **Live app:** https://erchulo.github.io/snapfold/
 
-SnapFold is a browser-only React/Vite prototype for turning an orbital photo set into a printable papercraft-style unfolding template. It is designed for static hosting on GitHub Pages. v0.2.0-alpha.3 begins the real reconstruction pipeline: ORB image features are extracted locally with OpenCV/WASM, matches are geometrically filtered with a deterministic calibrated eight-point RANSAC implementation, relative camera poses are recovered from the essential matrix, and inlier tracks are triangulated into a sparse 3D diagnostic cloud. The validated Letter-page/PDF pipeline remains available downstream as a legacy proxy until dense surface reconstruction replaces it.
+SnapFold is a browser-only React/Vite prototype for turning an orbital photo set into a printable papercraft-style unfolding template. It is designed for static hosting on GitHub Pages. v0.2.0-alpha.4 begins the real reconstruction pipeline: ORB image features are extracted locally with OpenCV/WASM, matches are geometrically filtered with a deterministic calibrated eight-point RANSAC implementation, relative camera poses are recovered from the essential matrix, and inlier tracks are triangulated into a sparse 3D diagnostic cloud. The validated Letter-page/PDF pipeline remains available downstream as a legacy proxy until dense surface reconstruction replaces it.
 
 ## Capture protocol
 
@@ -35,7 +35,7 @@ Practical rules:
 
 Geometrically, the preferred camera locations approximate three latitude rings on a sphere or ellipsoid around the object, rather than a single horizontal cylinder.
 
-## What v0.2.0-alpha.3 does
+## What v0.2.0-alpha.4 does
 
 1. Gives a concise three-ring orbital capture recipe.
 2. Accepts JPG, PNG, HEIC, and HEIF files using local browser file APIs.
@@ -44,18 +44,18 @@ Geometrically, the preferred camera locations approximate three latitude rings o
 5. Discovers an overlap graph between views, applies a Lowe-style descriptor-ratio filter, and estimates calibrated epipolar geometry with deterministic RANSAC. For sets up to 24 images, every pair is tested.
 6. Scores verified pairwise edges, selects the strongest connected camera component, then recovers camera rotations/translation directions along a strongest-edge spanning tree using essential-matrix decomposition and cheirality testing.
 7. Triangulates accepted correspondences into a sparse 3D point cloud and displays registered camera positions/view directions.
-8. Preserves the existing prism-based paper-net, tab, Letter-page, and PDF pipeline as an explicitly labeled legacy downstream proxy.
+8. Preserves the existing prism-based paper-net, tab, Letter-page, and PDF pipeline only as an explicitly separated legacy regression demo.
 
 ## Alpha fixes
 
 - **alpha.2:** uses the package-supported OpenCV initialization path and avoids treating the Emscripten module as an arbitrary thenable; this fixes the Firefox runtime error `Promise.prototype.then called on incompatible Object`.
-- **alpha.3:** replaces the fragile previous-view registration chain with an overlap graph. For capture sets up to 24 photos, every pair is tested, geometrically verified edges are scored, the largest connected component is selected, and camera poses are initialized along a strongest-edge spanning tree. Upload order and ring transitions no longer determine whether a view can register.
+- **alpha.3:** replaces the fragile previous-view registration chain with an overlap graph. For capture sets up to 24 photos, every pair is tested, geometrically verified edges are scored, the largest connected component is selected, and camera poses are initialized along a strongest-edge spanning tree. Upload order and ring transitions no longer determine whether a view can register.\n- **alpha.4:** separates the photo-derived workflow from the legacy prism/PDF regression demo. The normal Continue flow ends at reconstruction until a real reconstructed surface exists. The old prism can only be opened through an explicit “legacy prism demo” control and is prominently labeled as synthetic.
 
 ## Important alpha boundary
 
-The **Step 3 sparse cloud is photo-derived**. The paper net shown in Steps 4–7 is **not yet generated from that sparse cloud**. Dense multi-view surface reconstruction, global bundle adjustment, curvature-aware panelization, and material-aware unfolding are subsequent milestones.
+The **Step 3 sparse cloud is photo-derived**. The normal photo-derived workflow currently stops there. The old prism/PDF path is accessible only through an explicit legacy-demo control and is **not generated from the sparse cloud**. Dense multi-view surface reconstruction, global bundle adjustment, curvature-aware panelization, and material-aware unfolding are subsequent milestones.
 
-Monocular structure-from-motion also has arbitrary global scale. v0.2.0-alpha.3 normalizes pair baselines for diagnostic visualization; it does not claim metric dimensions from photographs alone.
+Monocular structure-from-motion also has arbitrary global scale. v0.2.0-alpha.4 normalizes pair baselines for diagnostic visualization; it does not claim metric dimensions from photographs alone.
 
 The intended development path is:
 
@@ -225,4 +225,4 @@ This is reserved for direct-print paper as well as overlay/template workflows fo
 
 ## Next engineering step
 
-Validate alpha.3 against the same real orbital photo set. Then add multi-view track chaining and global bundle adjustment before proceeding to dense surface reconstruction. Once a stable dense surface exists, replace the legacy prism with curvature-aware, material-aware panelization and unfolding.
+Do not advance the photo-derived workflow beyond Step 3 until multi-view track chaining and global bundle adjustment produce a coherent reconstruction. Then proceed to dense surface reconstruction. Once a stable dense surface exists, replace the legacy prism with curvature-aware, material-aware panelization and unfolding.
