@@ -1,21 +1,27 @@
+import cvModule from '@techstark/opencv-js'
+
 let cvPromise
 
-export async function getOpenCv() {
+export function getOpenCv() {
   if (!cvPromise) {
-    cvPromise = import('@techstark/opencv-js').then(async (module) => {
-      const candidate = module.default ?? module
-      const cv = typeof candidate?.then === 'function' ? await candidate : candidate
-      if (cv?.Mat) return cv
+    cvPromise = (async () => {
+      // @techstark/opencv-js exports either the initialized module, a real Promise,
+      // or an Emscripten module that signals readiness with onRuntimeInitialized.
+      // Do not probe/await arbitrary ".then" properties: some bundled Emscripten
+      // objects expose Promise.prototype.then without being valid Promise receivers.
+      if (cvModule instanceof Promise) return await cvModule
+      if (cvModule?.Mat) return cvModule
 
       await new Promise((resolve) => {
-        const previous = cv.onRuntimeInitialized
-        cv.onRuntimeInitialized = () => {
+        const previous = cvModule.onRuntimeInitialized
+        cvModule.onRuntimeInitialized = () => {
           if (typeof previous === 'function') previous()
           resolve()
         }
       })
-      return cv
-    })
+
+      return cvModule
+    })()
   }
   return cvPromise
 }
@@ -29,7 +35,7 @@ export function extractOrbFeatures(cv, imageData, maxFeatures = 1400) {
   const orb = new cv.ORB()
 
   try {
-    orb.setMaxFeatures(maxFeatures)
+    if (typeof orb.setMaxFeatures === 'function') orb.setMaxFeatures(maxFeatures)
     cv.cvtColor(source, gray, cv.COLOR_RGBA2GRAY, 0)
     orb.detectAndCompute(gray, mask, keypoints, descriptors)
 
