@@ -1,0 +1,109 @@
+name: Build SnapFold Desktop
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "src-tauri/**"
+      - "package.json"
+      - "vite.config.js"
+      - ".github/workflows/desktop.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: snapfold-desktop-linux
+  cancel-in-progress: true
+
+jobs:
+  linux-desktop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Tauri Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y             build-essential             curl             file             libayatana-appindicator3-dev             librsvg2-dev             libssl-dev             libwebkit2gtk-4.1-dev             libxdo-dev             patchelf             wget
+
+      - name: Install micromamba
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: snapfold-bootstrap
+          create-args: >-
+            python=3.12
+          cache-environment: false
+          init-shell: bash
+
+      - name: Build relocatable CPU COLMAP runtime
+        shell: bash -el {0}
+        run: |
+          rm -rf src-tauri/resources/colmap-env
+          micromamba create -y             -p "$PWD/src-tauri/resources/colmap-env"             -c conda-forge             "colmap=4.2.0=cpu_*"
+
+          export COLMAP_ROOT="$PWD/src-tauri/resources/colmap-env"
+          export LD_LIBRARY_PATH="$COLMAP_ROOT/lib:$COLMAP_ROOT/lib64:${LD_LIBRARY_PATH:-}"
+          export QT_QPA_PLATFORM=offscreen
+
+          "$COLMAP_ROOT/bin/colmap" -h >/tmp/colmap-help.txt 2>&1
+          head -40 /tmp/colmap-help.txt
+          du -sh "$COLMAP_ROOT"
+
+      - name: Install frontend dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Generate desktop icons
+        run: npx tauri icon public/favicon.svg
+
+      - name: Verify web production build
+        env:
+          TAURI_ENV_PLATFORM: linux
+        run: npm run build
+
+      - name: Build Linux desktop bundles
+        run: npm run tauri build -- --bundles appimage,deb
+
+      - name: Create checksums
+        shell: bash
+        run: |
+          find src-tauri/target/release/bundle -type f \( -name "*.AppImage" -o -name "*.deb" \) -print
+          find src-tauri/target/release/bundle -type f \( -name "*.AppImage" -o -name "*.deb" \) -print0             | sort -z             | xargs -0 sha256sum > SnapFold-desktop-SHA256SUMS.txt
+          cat SnapFold-desktop-SHA256SUMS.txt
+
+      - name: Upload desktop artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SnapFold-v0.3.0-alpha.1-linux
+          compression-level: 0
+          if-no-files-found: error
+          path: |
+            src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/deb/*.deb
+            SnapFold-desktop-SHA256SUMS.txt
+
+      - name: Publish prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          TAG="desktop-v0.3.0-alpha.1"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG"               --target "$GITHUB_SHA"               --prerelease               --title "SnapFold Desktop v0.3.0-alpha.1"               --notes "First native SnapFold reconstruction build. Select photographs in the desktop app; reconstruction uses bundled CPU COLMAP 4.2 with SIFT, exhaustive matching, incremental SfM and bundle adjustment. The viewer renders the exported COLMAP PLY and uses a sparse Delaunay surface when COLMAP can produce one."
+          fi
+
+          gh release upload "$TAG"             src-tauri/target/release/bundle/appimage/*.AppImage             src-tauri/target/release/bundle/deb/*.deb             SnapFold-desktop-SHA256SUMS.txt             --clobber

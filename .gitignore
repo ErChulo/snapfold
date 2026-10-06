@@ -2,3 +2,11 @@ node_modules/
 dist/
 .DS_Store
 *.local
+
+# Rust / Tauri build output
+src-tauri/target/
+src-tauri/icons/
+
+# The native COLMAP runtime is generated in CI and bundled into the desktop app.
+src-tauri/resources/colmap-env/*
+!src-tauri/resources/colmap-env/.gitkeep

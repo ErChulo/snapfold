@@ -1,6 +1,14 @@
-const labels = ['Capture', 'Upload', 'Reconstruct', 'Legacy 3D', 'Legacy Flatten', 'Legacy Tabs', 'Legacy Export']
+const allLabels = ['Capture', 'Photos', 'Reconstruct', 'Legacy 3D', 'Legacy Flatten', 'Legacy Tabs', 'Legacy Export']
 
-export default function Stepper({ currentStep, onStep, disabled = false, maxEnabledStep = 3 }) {
+export default function Stepper({
+  currentStep,
+  onStep,
+  disabled = false,
+  maxEnabledStep = 3,
+  desktopMode = false,
+}) {
+  const labels = desktopMode ? allLabels.slice(0, 3) : allLabels
+
   return (
     <nav aria-label="SnapFold workflow" className="overflow-x-auto">
       <ol className="flex min-w-max gap-2">

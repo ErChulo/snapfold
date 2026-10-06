@@ -3,215 +3,82 @@
 <p align="center"><img src="public/brand/snapfold-logo.svg" alt="SnapFold" width="620"></p>
 
 [![Deploy SnapFold to GitHub Pages](https://github.com/ErChulo/snapfold/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/ErChulo/snapfold/actions/workflows/deploy.yml)
-[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-live-brightgreen)](https://erchulo.github.io/snapfold/)
-![Version](https://img.shields.io/badge/version-v0.2.0--alpha.4-blue)
-![Browser only](https://img.shields.io/badge/processing-browser--only-6f42c1)
+[![Build SnapFold Desktop](https://github.com/ErChulo/snapfold/actions/workflows/desktop.yml/badge.svg?branch=main)](https://github.com/ErChulo/snapfold/actions/workflows/desktop.yml)
+![Version](https://img.shields.io/badge/version-v0.3.0--alpha.1-blue)
 
-**Live app:** https://erchulo.github.io/snapfold/
+SnapFold turns overlapping photographs into a 3D reconstruction and is being developed toward curvature-aware printable paper/cardboard models.
 
-SnapFold is a browser-only React/Vite prototype for turning an orbital photo set into a printable papercraft-style unfolding template. It is designed for static hosting on GitHub Pages. v0.2.0-alpha.4 begins the real reconstruction pipeline: ORB image features are extracted locally with OpenCV/WASM, matches are geometrically filtered with a deterministic calibrated eight-point RANSAC implementation, relative camera poses are recovered from the essential matrix, and inlier tracks are triangulated into a sparse 3D diagnostic cloud. The validated Letter-page/PDF pipeline remains available downstream as a legacy proxy until dense surface reconstruction replaces it.
+## v0.3.0-alpha.1: native reconstruction
+
+The desktop application is now a Tauri/React application with a bundled **COLMAP 4.2 CPU runtime**. The native path is separate from the earlier browser SfM experiment.
+
+Desktop reconstruction:
+
+```text
+choose local photos
+→ COLMAP SIFT feature extraction
+→ exhaustive feature matching
+→ incremental Structure-from-Motion
+→ COLMAP triangulation + bundle adjustment
+→ colored sparse PLY
+→ optional sparse Delaunay PLY mesh
+→ Three.js model viewer
+```
+
+The selected photographs are copied into a local SnapFold workspace and are not uploaded to SnapFold or to a cloud reconstruction service.
+
+The desktop workflow deliberately stops after the real reconstruction viewer. It does **not** feed a synthetic prism into the PDF pipeline.
+
+### Linux desktop download
+
+GitHub Actions builds an AppImage and Debian package and publishes them to the prerelease named:
+
+```text
+SnapFold Desktop v0.3.0-alpha.1
+```
+
+The AppImage contains the COLMAP CPU runtime used by SnapFold, so the user does not need to install COLMAP separately.
 
 ## Capture protocol
 
-For a normal object, use **three complete 360° rings** around a stationary object. Aim the camera near the object's center throughout the capture.
+Use overlapping photographs of a stationary object:
 
-| Pass | Camera elevation | Suggested photos | What to do |
-| --- | ---: | ---: | --- |
-| Low ring | 15–25° | 8–12 | Walk one complete circle around the object. |
-| Middle ring | 35–50° | 12–18 | Walk one complete circle; make this the densest ring. |
-| High ring | 60–75° | 8–12 | Walk one complete circle to cover upper surfaces. |
-| Top | near top-down | 1–4 | Add only when the high ring does not adequately show the top. |
+| Pass | Camera elevation | Suggested photos |
+| --- | ---: | ---: |
+| Low ring | 15–25° | 8–12 |
+| Middle ring | 35–50° | 12–18 |
+| High ring | 60–75° | 8–12 |
+| Top | near top-down | 1–4 |
 
-Practical rules:
+Target roughly 60–80% overlap, keep focal length fixed, keep the object stationary, and avoid changing zoom.
 
-- **Overlap:** target 60–80% overlap between neighboring images.
-- **Distance:** keep roughly the same camera-to-object radius so the object remains about the same size in the frame. Exact distance need not be mathematically constant.
-- **Zoom/focal length:** keep it fixed. Do not zoom between photographs.
-- **Object:** do not move or rotate it during the main capture.
-- **Camera aim:** keep the object near the center of the image.
-- **Lighting/exposure:** keep them as stable as practical; avoid strong moving reflections or shadows.
-- **Background:** some visual texture helps feature matching; a blank glossy background is less useful.
-- **Bottom/underside:** optional. If the underside matters, photograph it as a separate capture set that can later be registered to the main reconstruction.
+## Web application
 
-Geometrically, the preferred camera locations approximate three latitude rings on a sphere or ellipsoid around the object, rather than a single horizontal cylinder.
+The GitHub Pages application remains available at:
 
-## What v0.2.0-alpha.4 does
+https://erchulo.github.io/snapfold/
 
-1. Gives a concise three-ring orbital capture recipe.
-2. Accepts JPG, PNG, HEIC, and HEIF files using local browser file APIs.
-3. Reads useful EXIF camera metadata when present and estimates intrinsics when it is absent.
-4. Downscales analysis copies locally and extracts ORB keypoints/descriptors through OpenCV/WASM.
-5. Discovers an overlap graph between views, applies a Lowe-style descriptor-ratio filter, and estimates calibrated epipolar geometry with deterministic RANSAC. For sets up to 24 images, every pair is tested.
-6. Scores verified pairwise edges, selects the strongest connected camera component, then recovers camera rotations/translation directions along a strongest-edge spanning tree using essential-matrix decomposition and cheirality testing.
-7. Triangulates accepted correspondences into a sparse 3D point cloud and displays registered camera positions/view directions.
-8. Preserves the existing prism-based paper-net, tab, Letter-page, and PDF pipeline only as an explicitly separated legacy regression demo.
+The web reconstruction code is retained as an experimental diagnostic. The serious reconstruction path is the native desktop COLMAP path.
 
-## Alpha fixes
-
-- **alpha.2:** uses the package-supported OpenCV initialization path and avoids treating the Emscripten module as an arbitrary thenable; this fixes the Firefox runtime error `Promise.prototype.then called on incompatible Object`.
-- **alpha.3:** replaces the fragile previous-view registration chain with an overlap graph. For capture sets up to 24 photos, every pair is tested, geometrically verified edges are scored, the largest connected component is selected, and camera poses are initialized along a strongest-edge spanning tree. Upload order and ring transitions no longer determine whether a view can register.\n- **alpha.4:** separates the photo-derived workflow from the legacy prism/PDF regression demo. The normal Continue flow ends at reconstruction until a real reconstructed surface exists. The old prism can only be opened through an explicit “legacy prism demo” control and is prominently labeled as synthetic.
-
-## Important alpha boundary
-
-The **Step 3 sparse cloud is photo-derived**. The normal photo-derived workflow currently stops there. The old prism/PDF path is accessible only through an explicit legacy-demo control and is **not generated from the sparse cloud**. Dense multi-view surface reconstruction, global bundle adjustment, curvature-aware panelization, and material-aware unfolding are subsequent milestones.
-
-Monocular structure-from-motion also has arbitrary global scale. v0.2.0-alpha.4 normalizes pair baselines for diagnostic visualization; it does not claim metric dimensions from photographs alone.
-
-The intended development path is:
+## Desktop architecture
 
 ```text
-orbital photos
-→ feature matching
-→ camera-pose estimation
-→ 3D reconstruction
-→ smooth/curvature-aware surface model
-→ developable panelization and strategic seams
-→ glue tabs
-→ printable PDF
-→ photographic color/texture projection
+React / Vite
+    ↓ Tauri invoke + progress events
+Rust / Tauri
+    ↓ local process
+Bundled COLMAP 4.2 CPU
+    ↓
+PLY point cloud / optional PLY mesh
+    ↓
+Three.js viewer
 ```
 
-The long-term goal is **not** a visibly low-poly model. Polygon meshes may remain an internal numerical representation, while the printable model can use curvature-aware seam placement, smooth bends, and curved panel boundaries where the paper geometry permits them.
+Rust is responsible for local workspace creation, copying selected images, invoking COLMAP, reporting progress, selecting the strongest sparse model, exporting PLY, and returning the geometry to React.
 
-## Brand assets
+## Material-aware target
 
-The production UI uses scalable SVG derivatives of the selected impossible-geometry concept:
-
-- `public/brand/snapfold-logo.svg` — horizontal lockup
-- `public/brand/snapfold-mark.svg` — standalone impossible S/F mark
-- `public/brand/snapfold-wordmark.svg` — wordmark
-- `public/brand/snapfold-icon.svg` — rounded app icon
-- `public/favicon.svg` — browser favicon
-
-## Stack
-
-- React + Vite
-- Tailwind CSS
-- Three.js via `@react-three/fiber` and `@react-three/drei`
-- OpenCV.js/WASM via `@techstark/opencv-js` for ORB feature extraction and Hamming matching
-- `ml-matrix` for browser-side epipolar geometry, pose decomposition, and triangulation
-- `exifr` for local EXIF camera metadata
-- `heic2any` for browser-side HEIC/HEIF preview conversion
-- `jsPDF` for vector Letter-size PDF generation
-- GitHub Actions + GitHub Pages for automatic static deployment
-
-## Local development
-
-```bash
-npm install
-npm run dev
-```
-
-Production build:
-
-```bash
-npm run build
-npm run preview
-```
-
-## GitHub Pages deployment
-
-The repository includes `.github/workflows/deploy.yml`.
-
-On every push to `main`, the workflow:
-
-1. checks out the repository;
-2. installs Node.js 24;
-3. installs dependencies with `npm install --no-audit --no-fund`;
-4. runs `npm run build`;
-5. publishes `dist/` to the `gh-pages` branch.
-
-`vite.config.js` derives the GitHub repository name from the `GITHUB_REPOSITORY` environment variable, so the production `base` becomes `/<repository-name>/` automatically. Local development continues to use `/`.
-
-GitHub Pages is configured to publish from `gh-pages` at `/(root)`. The workflow declares `contents: write`, which is required to update the deployment branch.
-
-## Geometry conventions
-
-- **Solid black**: outer cut line
-- **Dashed red**: mountain fold
-- **Dotted blue**: valley fold
-- **Shaded green + dashed border**: glue tab
-
-The tab generator creates outward trapezoids with approximately 45-degree side tethers. Candidate tabs are collision-tested against non-parent faces and already accepted tabs. A colliding candidate is progressively reduced before being rejected.
-
-## Letter-page model
-
-The page model uses physical inch units:
-
-- Paper: 8.5 × 11 in
-- Margin: 0.25 in
-- Header band: 0.38 in
-- Legend band: 0.42 in
-- Figure scale: 10–100% of the largest non-overflowing fit
-
-The same transform is used by both the preview renderer and the PDF exporter.
-
-## Verified v0.1.x smoke test
-
-The live application has been manually exercised through:
-
-```text
-photo selection
-→ local thumbnail preview
-→ 3D viewport
-→ 2D Letter preview
-→ flattening metrics
-→ adhesive-tab stage
-→ PDF export
-```
-
-The generated PDF was confirmed to download and open successfully.
-
-## Project structure
-
-```text
-SnapFold/
-├── .github/workflows/deploy.yml
-├── public/
-│   ├── brand/
-│   │   ├── snapfold-icon.svg
-│   │   ├── snapfold-logo.svg
-│   │   ├── snapfold-mark.svg
-│   │   └── snapfold-wordmark.svg
-│   ├── favicon.svg
-│   └── site.webmanifest
-├── src/
-│   ├── components/
-│   │   ├── AdhesiveStep.jsx
-│   │   ├── ExportHub.jsx
-│   │   ├── FlatteningStep.jsx
-│   │   ├── Instructions.jsx
-│   │   ├── ModelViewport.jsx
-│   │   ├── NetCanvas.jsx
-│   │   ├── ReconstructionStep.jsx
-│   │   ├── SparseViewport.jsx
-│   │   ├── Simulation.jsx
-│   │   ├── Stepper.jsx
-│   │   └── UploadPanel.jsx
-│   ├── utils/
-│   │   ├── reconstruction/
-│   │   │   ├── linearAlgebra.js
-│   │   │   ├── opencv.js
-│   │   │   ├── photoAnalysis.js
-│   │   │   └── sparseReconstruction.js
-│   │   ├── imageFiles.js
-│   │   ├── materialProfile.js
-│   │   ├── pdfExporter.js
-│   │   └── unfolder.js
-│   ├── App.jsx
-│   ├── index.css
-│   └── main.jsx
-├── eslint.config.js
-├── index.html
-├── package.json
-├── postcss.config.js
-├── tailwind.config.js
-└── vite.config.js
-```
-
-## Material-aware architecture
-
-The project now carries a material-profile contract even though alpha.1 does not yet apply it to unfolding:
+SnapFold already carries a material profile for the later unfolding stage:
 
 ```text
 mode
@@ -221,8 +88,66 @@ kerfMm
 grainDirection
 ```
 
-This is reserved for direct-print paper as well as overlay/template workflows for cardstock, chipboard, and bendable cardboard.
+The intended downstream pipeline remains:
 
-## Next engineering step
+```text
+real reconstructed surface
+→ mesh cleanup
+→ curvature analysis
+→ developable panelization
+→ thickness / bend / kerf compensation
+→ paper or cardboard templates
+→ tabs
+→ PDF
+```
 
-Do not advance the photo-derived workflow beyond Step 3 until multi-view track chaining and global bundle adjustment produce a coherent reconstruction. Then proceed to dense surface reconstruction. Once a stable dense surface exists, replace the legacy prism with curvature-aware, material-aware panelization and unfolding.
+## Development
+
+Web:
+
+```bash
+npm install
+npm run dev
+```
+
+Desktop development requires a COLMAP runtime under:
+
+```text
+src-tauri/resources/colmap-env/
+```
+
+The CI workflow creates this environment from conda-forge automatically before running:
+
+```bash
+npm run tauri build -- --bundles appimage,deb
+```
+
+## Key source layout
+
+```text
+src/
+├── components/
+│   ├── DesktopUploadPanel.jsx
+│   ├── DesktopReconstructionStep.jsx
+│   ├── DesktopModelViewport.jsx
+│   └── ...
+├── utils/
+│   ├── desktop.js
+│   ├── reconstruction/
+│   └── ...
+└── App.jsx
+
+src-tauri/
+├── Cargo.toml
+├── build.rs
+├── tauri.conf.json
+├── capabilities/default.json
+├── resources/colmap-env/
+└── src/
+    ├── lib.rs
+    └── main.rs
+```
+
+## Existing legacy papercraft pipeline
+
+The v0.1.x prism net, tabs, Letter layout, and vector PDF generator remain in the repository as regression/reference code. They are not presented as reconstruction output.
