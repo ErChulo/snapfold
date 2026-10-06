@@ -48,6 +48,50 @@ jobs:
           colmap feature_extractor -h 2>&1 | grep -E "SiftExtraction.(use_gpu|max_image_size)"
           colmap exhaustive_matcher -h 2>&1 | grep -E "SiftMatching.(use_gpu|guided_matching)"
 
+      - name: Smoke-test real COLMAP reconstruction
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rm -rf /tmp/snapfold-colmap-smoke
+          mkdir -p /tmp/snapfold-colmap-smoke/source /tmp/snapfold-colmap-smoke/images /tmp/snapfold-colmap-smoke/sparse
+
+          wget -q             https://github.com/colmap/colmap/releases/download/3.11.1/south-building.zip             -O /tmp/snapfold-colmap-smoke/south-building.zip
+
+          unzip -q /tmp/snapfold-colmap-smoke/south-building.zip             -d /tmp/snapfold-colmap-smoke/source
+
+          find /tmp/snapfold-colmap-smoke/source -type f             \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \)             | sort             | head -32             | while read -r image; do cp "$image" /tmp/snapfold-colmap-smoke/images/; done
+
+          test "$(find /tmp/snapfold-colmap-smoke/images -type f | wc -l)" -ge 12
+
+          colmap feature_extractor             --database_path /tmp/snapfold-colmap-smoke/database.db             --image_path /tmp/snapfold-colmap-smoke/images             --ImageReader.single_camera 1             --ImageReader.camera_model SIMPLE_RADIAL             --SiftExtraction.use_gpu 0             --SiftExtraction.max_image_size 1600
+
+          colmap exhaustive_matcher             --database_path /tmp/snapfold-colmap-smoke/database.db             --SiftMatching.use_gpu 0             --SiftMatching.guided_matching 1
+
+          colmap mapper             --database_path /tmp/snapfold-colmap-smoke/database.db             --image_path /tmp/snapfold-colmap-smoke/images             --output_path /tmp/snapfold-colmap-smoke/sparse
+
+          MODEL_DIR="$(find /tmp/snapfold-colmap-smoke/sparse -mindepth 1 -maxdepth 1 -type d -print -quit)"
+          test -n "$MODEL_DIR"
+          test -s "$MODEL_DIR/points3D.bin"
+
+          colmap model_converter             --input_path "$MODEL_DIR"             --output_path /tmp/snapfold-colmap-smoke/model.ply             --output_type PLY
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("/tmp/snapfold-colmap-smoke/model.ply")
+          data = path.read_bytes()[:32768].decode("ascii", errors="ignore")
+          count = 0
+          for line in data.splitlines():
+              if line.startswith("element vertex "):
+                  count = int(line.split()[-1])
+                  break
+
+          print(f"Smoke reconstruction PLY vertices: {count}")
+          if count < 100:
+              raise SystemExit(f"Smoke reconstruction is too small: {count} vertices")
+          PY
+
       - name: Install frontend dependencies
         run: npm install --no-audit --no-fund
 
