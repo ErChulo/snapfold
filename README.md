@@ -4,17 +4,17 @@
 
 [![Deploy SnapFold to GitHub Pages](https://github.com/ErChulo/snapfold/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/ErChulo/snapfold/actions/workflows/deploy.yml)
 [![Build SnapFold Desktop](https://github.com/ErChulo/snapfold/actions/workflows/desktop.yml/badge.svg?branch=main)](https://github.com/ErChulo/snapfold/actions/workflows/desktop.yml)
-![Version](https://img.shields.io/badge/version-v0.3.0--alpha.1-blue)
+![Version](https://img.shields.io/badge/version-v0.3.0--alpha.2-blue)
 
 SnapFold turns overlapping photographs into a 3D reconstruction and is being developed toward curvature-aware printable paper/cardboard models.
 
-## v0.3.0-alpha.1: native reconstruction
+## v0.3.0-alpha.2: native reconstruction
 
-The serious reconstruction path is now a **Tauri/React desktop application using native COLMAP**, separate from the earlier browser SfM experiment.
+The serious reconstruction path is now a **Tauri/React desktop application using native COLMAP**, separate from the earlier browser SfM experiment. Alpha.2 is deliberately tuned for lower-memory Linux systems after the first field test was killed during SIFT extraction.
 
 ```text
 choose local photos
-→ COLMAP SIFT feature extraction (CPU)
+→ COLMAP SIFT feature extraction (CPU, 1 thread, 1200px cap, 4096 features/image)
 → exhaustive geometric matching
 → incremental Structure-from-Motion
 → triangulation + bundle adjustment
@@ -30,7 +30,7 @@ No synthetic prism is used in the desktop reconstruction workflow.
 GitHub Actions publishes a Debian package in the prerelease:
 
 ```text
-SnapFold Desktop v0.3.0-alpha.1
+SnapFold Desktop v0.3.0-alpha.2
 ```
 
 Install it with:
