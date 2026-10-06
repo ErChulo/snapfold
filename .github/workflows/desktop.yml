@@ -22,7 +22,7 @@ concurrency:
 jobs:
   linux-desktop:
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -36,58 +36,17 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Tauri Linux build dependencies
+      - name: Install Tauri and reconstruction dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y             build-essential             curl             file             libayatana-appindicator3-dev             librsvg2-dev             libssl-dev             libwebkit2gtk-4.1-dev             libxdo-dev             patchelf             wget
+          sudo apt-get install -y             build-essential             colmap             file             libayatana-appindicator3-dev             librsvg2-dev             libssl-dev             libwebkit2gtk-4.1-dev             libxdo-dev             patchelf
 
-      - name: Install micromamba
-        uses: mamba-org/setup-micromamba@v2
-        with:
-          environment-name: snapfold-bootstrap
-          create-args: >-
-            python=3.12
-          cache-environment: false
-          init-shell: bash
-
-      - name: Build relocatable CPU COLMAP runtime
-        shell: bash -el {0}
+      - name: Verify native COLMAP engine
         run: |
-          rm -rf src-tauri/resources/colmap-env
-          micromamba create -y             -p "$PWD/src-tauri/resources/colmap-env"             -c conda-forge             "colmap=4.2.0=cpu_*"
-
-          export COLMAP_ROOT="$PWD/src-tauri/resources/colmap-env"
-          export QT_QPA_PLATFORM=offscreen
-
-          echo "COLMAP package files:"
-          find "$COLMAP_ROOT" -maxdepth 4 -type f -name "colmap*" -print | head -30
-
-          echo "Smoke test through micromamba activation:"
-          micromamba run -p "$COLMAP_ROOT" colmap -h >/tmp/colmap-activated.txt 2>&1
-          head -40 /tmp/colmap-activated.txt
-
-          COLMAP_BIN="$(find "$COLMAP_ROOT" -type f -name colmap -perm -111 -print -quit)"
-          if [ -z "$COLMAP_BIN" ]; then
-            echo "Could not locate the COLMAP executable in the packaged environment."
-            exit 1
-          fi
-
-          echo "Resolved executable: $COLMAP_BIN"
-          file "$COLMAP_BIN"
-          ldd "$COLMAP_BIN" || true
-
-          export LD_LIBRARY_PATH="$COLMAP_ROOT/lib:$COLMAP_ROOT/lib64:${LD_LIBRARY_PATH:-}"
-          set +e
-          "$COLMAP_BIN" -h >/tmp/colmap-direct.txt 2>&1
-          STATUS=$?
-          set -e
-          cat /tmp/colmap-direct.txt
-          if [ "$STATUS" -ne 0 ]; then
-            echo "Direct packaged COLMAP execution failed with status $STATUS."
-            exit "$STATUS"
-          fi
-
-          du -sh "$COLMAP_ROOT"
+          command -v colmap
+          colmap -h | head -40
+          colmap feature_extractor -h | grep -E "SiftExtraction.(use_gpu|max_image_size)"
+          colmap exhaustive_matcher -h | grep -E "SiftMatching.(use_gpu|guided_matching)"
 
       - name: Install frontend dependencies
         run: npm install --no-audit --no-fund
@@ -95,29 +54,32 @@ jobs:
       - name: Generate desktop icons
         run: npx tauri icon public/favicon.svg
 
-      - name: Verify web production build
+      - name: Verify frontend production build
         env:
           TAURI_ENV_PLATFORM: linux
         run: npm run build
 
-      - name: Build Linux desktop bundles
-        run: npm run tauri build -- --bundles appimage,deb
+      - name: Build Linux Debian package
+        run: npm run tauri build -- --bundles deb
 
-      - name: Create checksums
+      - name: Verify Debian dependencies and package
         shell: bash
         run: |
-          find src-tauri/target/release/bundle -type f \( -name "*.AppImage" -o -name "*.deb" \) -print
-          find src-tauri/target/release/bundle -type f \( -name "*.AppImage" -o -name "*.deb" \) -print0             | sort -z             | xargs -0 sha256sum > SnapFold-desktop-SHA256SUMS.txt
+          DEB="$(find src-tauri/target/release/bundle/deb -type f -name "*.deb" -print -quit)"
+          test -n "$DEB"
+          dpkg-deb -I "$DEB" | tee /tmp/deb-info.txt
+          grep -i "Depends:.*colmap" /tmp/deb-info.txt
+          file "$DEB"
+          sha256sum "$DEB" > SnapFold-desktop-SHA256SUMS.txt
           cat SnapFold-desktop-SHA256SUMS.txt
 
       - name: Upload desktop artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SnapFold-v0.3.0-alpha.1-linux
+          name: SnapFold-v0.3.0-alpha.1-linux-deb
           compression-level: 0
           if-no-files-found: error
           path: |
-            src-tauri/target/release/bundle/appimage/*.AppImage
             src-tauri/target/release/bundle/deb/*.deb
             SnapFold-desktop-SHA256SUMS.txt
 
@@ -128,7 +90,7 @@ jobs:
         run: |
           TAG="desktop-v0.3.0-alpha.1"
           if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG"               --target "$GITHUB_SHA"               --prerelease               --title "SnapFold Desktop v0.3.0-alpha.1"               --notes "First native SnapFold reconstruction build. Select photographs in the desktop app; reconstruction uses bundled CPU COLMAP 4.2 with SIFT, exhaustive matching, incremental SfM and bundle adjustment. The viewer renders the exported COLMAP PLY and uses a sparse Delaunay surface when COLMAP can produce one."
+            gh release create "$TAG"               --target "$GITHUB_SHA"               --prerelease               --title "SnapFold Desktop v0.3.0-alpha.1"               --notes "Linux Mint 22.x / Ubuntu 24.04 native reconstruction build. Install the .deb with APT; its package metadata depends on Ubuntu's COLMAP package, so APT installs the native engine automatically. SnapFold then runs CPU SIFT extraction, exhaustive matching, incremental SfM and bundle adjustment, and displays the real COLMAP PLY reconstruction."
           fi
 
-          gh release upload "$TAG"             src-tauri/target/release/bundle/appimage/*.AppImage             src-tauri/target/release/bundle/deb/*.deb             SnapFold-desktop-SHA256SUMS.txt             --clobber
+          gh release upload "$TAG"             src-tauri/target/release/bundle/deb/*.deb             SnapFold-desktop-SHA256SUMS.txt             --clobber

@@ -10,55 +10,52 @@ SnapFold turns overlapping photographs into a 3D reconstruction and is being dev
 
 ## v0.3.0-alpha.1: native reconstruction
 
-The desktop application is now a Tauri/React application with a bundled **COLMAP 4.2 CPU runtime**. The native path is separate from the earlier browser SfM experiment.
-
-Desktop reconstruction:
+The serious reconstruction path is now a **Tauri/React desktop application using native COLMAP**, separate from the earlier browser SfM experiment.
 
 ```text
 choose local photos
-→ COLMAP SIFT feature extraction
-→ exhaustive feature matching
+→ COLMAP SIFT feature extraction (CPU)
+→ exhaustive geometric matching
 → incremental Structure-from-Motion
-→ COLMAP triangulation + bundle adjustment
+→ triangulation + bundle adjustment
 → colored sparse PLY
-→ optional sparse Delaunay PLY mesh
+→ optional sparse Delaunay surface
 → Three.js model viewer
 ```
 
-The selected photographs are copied into a local SnapFold workspace and are not uploaded to SnapFold or to a cloud reconstruction service.
+No synthetic prism is used in the desktop reconstruction workflow.
 
-The desktop workflow deliberately stops after the real reconstruction viewer. It does **not** feed a synthetic prism into the PDF pipeline.
+### Linux Mint 22.x / Ubuntu 24.04
 
-### Linux desktop download
-
-GitHub Actions builds an AppImage and Debian package and publishes them to the prerelease named:
+GitHub Actions publishes a Debian package in the prerelease:
 
 ```text
 SnapFold Desktop v0.3.0-alpha.1
 ```
 
-The AppImage contains the COLMAP CPU runtime used by SnapFold, so the user does not need to install COLMAP separately.
+Install it with:
+
+```bash
+sudo apt install ./<downloaded-snapfold-package>.deb
+```
+
+The package declares **`colmap` as an APT dependency**, so APT installs Ubuntu Noble's native COLMAP package automatically. Linux Mint 22.x uses the Ubuntu Noble package base.
+
+Then launch SnapFold, choose the photographs in Step 2, and press **Build real 3D reconstruction** in Step 3. The resulting COLMAP PLY is rendered directly in the app.
+
+The selected photographs are copied only into a local SnapFold workspace. They are not uploaded to SnapFold or a reconstruction service.
 
 ## Capture protocol
 
-Use overlapping photographs of a stationary object:
-
-| Pass | Camera elevation | Suggested photos |
-| --- | ---: | ---: |
-| Low ring | 15–25° | 8–12 |
-| Middle ring | 35–50° | 12–18 |
-| High ring | 60–75° | 8–12 |
-| Top | near top-down | 1–4 |
-
-Target roughly 60–80% overlap, keep focal length fixed, keep the object stationary, and avoid changing zoom.
+Use overlapping photographs of a stationary object. Target roughly 60–80% overlap, keep focal length fixed, keep the object stationary, and avoid changing zoom.
 
 ## Web application
 
-The GitHub Pages application remains available at:
+The GitHub Pages build remains at:
 
 https://erchulo.github.io/snapfold/
 
-The web reconstruction code is retained as an experimental diagnostic. The serious reconstruction path is the native desktop COLMAP path.
+The web reconstruction code is retained as an experimental diagnostic. It is not the native COLMAP reconstruction path.
 
 ## Desktop architecture
 
@@ -67,87 +64,29 @@ React / Vite
     ↓ Tauri invoke + progress events
 Rust / Tauri
     ↓ local process
-Bundled COLMAP 4.2 CPU
+COLMAP 3.9.1 CPU from Ubuntu Noble
     ↓
 PLY point cloud / optional PLY mesh
     ↓
 Three.js viewer
 ```
 
-Rust is responsible for local workspace creation, copying selected images, invoking COLMAP, reporting progress, selecting the strongest sparse model, exporting PLY, and returning the geometry to React.
-
-## Material-aware target
-
-SnapFold already carries a material profile for the later unfolding stage:
-
-```text
-mode
-thicknessMm
-minBendRadiusMm
-kerfMm
-grainDirection
-```
-
-The intended downstream pipeline remains:
-
-```text
-real reconstructed surface
-→ mesh cleanup
-→ curvature analysis
-→ developable panelization
-→ thickness / bend / kerf compensation
-→ paper or cardboard templates
-→ tabs
-→ PDF
-```
-
 ## Development
 
-Web:
-
 ```bash
+sudo apt install colmap
 npm install
-npm run dev
+npm run desktop:dev
 ```
 
-Desktop development requires a COLMAP runtime under:
-
-```text
-src-tauri/resources/colmap-env/
-```
-
-The CI workflow creates this environment from conda-forge automatically before running:
+Production Debian package:
 
 ```bash
-npm run tauri build -- --bundles appimage,deb
+npm run tauri build -- --bundles deb
 ```
 
-## Key source layout
-
-```text
-src/
-├── components/
-│   ├── DesktopUploadPanel.jsx
-│   ├── DesktopReconstructionStep.jsx
-│   ├── DesktopModelViewport.jsx
-│   └── ...
-├── utils/
-│   ├── desktop.js
-│   ├── reconstruction/
-│   └── ...
-└── App.jsx
-
-src-tauri/
-├── Cargo.toml
-├── build.rs
-├── tauri.conf.json
-├── capabilities/default.json
-├── resources/colmap-env/
-└── src/
-    ├── lib.rs
-    └── main.rs
-```
+The Debian package explicitly depends on `colmap`.
 
 ## Existing legacy papercraft pipeline
 
-The v0.1.x prism net, tabs, Letter layout, and vector PDF generator remain in the repository as regression/reference code. They are not presented as reconstruction output.
+The v0.1.x prism net, tabs, Letter layout, and vector PDF generator remain in the repository as regression/reference code. They are not presented as native reconstruction output.

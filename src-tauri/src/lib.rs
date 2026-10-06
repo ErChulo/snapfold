@@ -1,7 +1,6 @@
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde::Serialize;
 use std::{
-    ffi::OsString,
     fs,
     path::{Path, PathBuf},
     process::Command,
@@ -80,72 +79,22 @@ fn allowed_extension(path: &Path) -> Option<String> {
     }
 }
 
-fn colmap_candidates(app: &AppHandle) -> Result<Vec<(PathBuf, Option<PathBuf>)>, String> {
-    let resource_dir = app
-        .path()
-        .resource_dir()
-        .map_err(|e| format!("Could not resolve SnapFold resource directory: {e}"))?;
-
-    Ok(vec![
-        (
-            resource_dir.join("resources/colmap-env/bin/colmap"),
-            Some(resource_dir.join("resources/colmap-env")),
-        ),
-        (
-            resource_dir.join("colmap-env/bin/colmap"),
-            Some(resource_dir.join("colmap-env")),
-        ),
-        (PathBuf::from("colmap"), None),
-    ])
-}
-
-fn find_colmap(app: &AppHandle) -> Result<(PathBuf, Option<PathBuf>), String> {
-    for (candidate, env_root) in colmap_candidates(app)? {
+fn find_colmap(_app: &AppHandle) -> Result<(PathBuf, Option<PathBuf>), String> {
+    for candidate in [PathBuf::from("/usr/bin/colmap"), PathBuf::from("colmap")] {
         if candidate.is_absolute() && !candidate.exists() {
             continue;
         }
 
-        let mut command = Command::new(&candidate);
-        command.arg("-h");
-        if let Some(root) = &env_root {
-            configure_colmap_environment(&mut command, root);
-        }
-
-        if command.output().is_ok() {
-            return Ok((candidate, env_root));
+        let output = Command::new(&candidate).arg("-h").output();
+        if matches!(output, Ok(ref value) if value.status.success()) {
+            return Ok((candidate, None));
         }
     }
 
     Err(
-        "COLMAP engine was not found. This desktop build is expected to contain the bundled COLMAP runtime."
+        "COLMAP was not found. Install SnapFold with its Debian package so the required 'colmap' dependency is installed automatically."
             .to_string(),
     )
-}
-
-fn configure_colmap_environment(command: &mut Command, env_root: &Path) {
-    let lib = env_root.join("lib");
-    let lib64 = env_root.join("lib64");
-    let mut library_paths = vec![lib];
-    if lib64.exists() {
-        library_paths.push(lib64);
-    }
-
-    if let Some(existing) = std::env::var_os("LD_LIBRARY_PATH") {
-        library_paths.push(PathBuf::from(existing));
-    }
-
-    let joined = std::env::join_paths(library_paths).unwrap_or_else(|_| OsString::new());
-    command.env("LD_LIBRARY_PATH", joined);
-    command.env("QT_QPA_PLATFORM", "offscreen");
-
-    let plugin_candidates = [
-        env_root.join("plugins"),
-        env_root.join("lib/qt6/plugins"),
-        env_root.join("lib/qt/plugins"),
-    ];
-    if let Some(plugin_dir) = plugin_candidates.iter().find(|path| path.exists()) {
-        command.env("QT_PLUGIN_PATH", plugin_dir);
-    }
 }
 
 fn tail(value: &str, max_chars: usize) -> String {
@@ -182,9 +131,8 @@ fn run_colmap(
 
     let mut command = Command::new(executable);
     command.args(args).current_dir(workspace);
-    if let Some(root) = env_root {
-        configure_colmap_environment(&mut command, root);
-    }
+    let _ = env_root;
+    command.env("QT_QPA_PLATFORM", "offscreen");
 
     let output = command
         .output()
@@ -345,9 +293,9 @@ fn reconstruct_blocking(
             "1".into(),
             "--ImageReader.camera_model".into(),
             "SIMPLE_RADIAL".into(),
-            "--FeatureExtraction.use_gpu".into(),
+            "--SiftExtraction.use_gpu".into(),
             "0".into(),
-            "--FeatureExtraction.max_image_size".into(),
+            "--SiftExtraction.max_image_size".into(),
             "2400".into(),
         ],
     )?;
@@ -364,9 +312,9 @@ fn reconstruct_blocking(
             "exhaustive_matcher".into(),
             "--database_path".into(),
             database_s.clone(),
-            "--FeatureMatching.use_gpu".into(),
+            "--SiftMatching.use_gpu".into(),
             "0".into(),
-            "--FeatureMatching.guided_matching".into(),
+            "--SiftMatching.guided_matching".into(),
             "1".into(),
         ],
     )?;
@@ -387,8 +335,6 @@ fn reconstruct_blocking(
             images_s,
             "--output_path".into(),
             sparse_s,
-            "--Mapper.extract_colors".into(),
-            "1".into(),
         ],
     )?;
 
@@ -490,7 +436,7 @@ fn reconstruct_blocking(
         point_ply_base64: BASE64.encode(point_bytes),
         mesh_ply_base64,
         workspace_path: workspace.to_string_lossy().to_string(),
-        engine_label: "COLMAP 4.2 CPU".to_string(),
+        engine_label: "COLMAP 3.9.1 CPU (Ubuntu Noble)".to_string(),
     })
 }
 
