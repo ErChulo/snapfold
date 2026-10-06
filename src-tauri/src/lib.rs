@@ -133,6 +133,12 @@ fn run_colmap(
     command.args(args).current_dir(workspace);
     let _ = env_root;
     command.env("QT_QPA_PLATFORM", "offscreen");
+    // Keep native numerical libraries from multiplying the memory footprint
+    // behind COLMAP's own thread controls. This is deliberately conservative
+    // for laptops and lower-memory Linux machines.
+    command.env("OMP_NUM_THREADS", "1");
+    command.env("OPENBLAS_NUM_THREADS", "1");
+    command.env("MKL_NUM_THREADS", "1");
 
     let output = command
         .output()
@@ -295,8 +301,12 @@ fn reconstruct_blocking(
             "SIMPLE_RADIAL".into(),
             "--SiftExtraction.use_gpu".into(),
             "0".into(),
+            "--SiftExtraction.num_threads".into(),
+            "1".into(),
             "--SiftExtraction.max_image_size".into(),
-            "2400".into(),
+            "1200".into(),
+            "--SiftExtraction.max_num_features".into(),
+            "4096".into(),
         ],
     )?;
 
@@ -314,6 +324,8 @@ fn reconstruct_blocking(
             database_s.clone(),
             "--SiftMatching.use_gpu".into(),
             "0".into(),
+            "--SiftMatching.num_threads".into(),
+            "1".into(),
             "--SiftMatching.guided_matching".into(),
             "1".into(),
         ],
