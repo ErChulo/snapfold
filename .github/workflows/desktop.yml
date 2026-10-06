@@ -57,11 +57,36 @@ jobs:
           micromamba create -y             -p "$PWD/src-tauri/resources/colmap-env"             -c conda-forge             "colmap=4.2.0=cpu_*"
 
           export COLMAP_ROOT="$PWD/src-tauri/resources/colmap-env"
-          export LD_LIBRARY_PATH="$COLMAP_ROOT/lib:$COLMAP_ROOT/lib64:${LD_LIBRARY_PATH:-}"
           export QT_QPA_PLATFORM=offscreen
 
-          "$COLMAP_ROOT/bin/colmap" -h >/tmp/colmap-help.txt 2>&1
-          head -40 /tmp/colmap-help.txt
+          echo "COLMAP package files:"
+          find "$COLMAP_ROOT" -maxdepth 4 -type f -name "colmap*" -print | head -30
+
+          echo "Smoke test through micromamba activation:"
+          micromamba run -p "$COLMAP_ROOT" colmap -h >/tmp/colmap-activated.txt 2>&1
+          head -40 /tmp/colmap-activated.txt
+
+          COLMAP_BIN="$(find "$COLMAP_ROOT" -type f -name colmap -perm -111 -print -quit)"
+          if [ -z "$COLMAP_BIN" ]; then
+            echo "Could not locate the COLMAP executable in the packaged environment."
+            exit 1
+          fi
+
+          echo "Resolved executable: $COLMAP_BIN"
+          file "$COLMAP_BIN"
+          ldd "$COLMAP_BIN" || true
+
+          export LD_LIBRARY_PATH="$COLMAP_ROOT/lib:$COLMAP_ROOT/lib64:${LD_LIBRARY_PATH:-}"
+          set +e
+          "$COLMAP_BIN" -h >/tmp/colmap-direct.txt 2>&1
+          STATUS=$?
+          set -e
+          cat /tmp/colmap-direct.txt
+          if [ "$STATUS" -ne 0 ]; then
+            echo "Direct packaged COLMAP execution failed with status $STATUS."
+            exit "$STATUS"
+          fi
+
           du -sh "$COLMAP_ROOT"
 
       - name: Install frontend dependencies
