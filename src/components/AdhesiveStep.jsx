@@ -2,7 +2,7 @@ export default function AdhesiveStep({ net }) {
   return (
     <section className="space-y-6">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Step 5</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Step 6</p>
         <h2 className="mt-2 text-2xl font-semibold text-white">Adhesive logic</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
           Open boundary edges receive outward trapezoids. Each tab begins with 45° tether geometry; if it intersects another face or previously accepted tab, its depth is reduced iteratively before acceptance.

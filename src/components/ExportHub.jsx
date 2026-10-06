@@ -5,7 +5,7 @@ export default function ExportHub({ projectName, net, scalePercent }) {
   return (
     <section className="space-y-5">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Step 6</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Step 7</p>
         <h2 className="mt-2 text-2xl font-semibold text-white">Export Hub</h2>
         <p className="mt-2 text-sm leading-6 text-zinc-400">Generate a vector Letter-size PDF from the same geometry used in the preview.</p>
       </div>

@@ -9,7 +9,7 @@ export default function FlatteningStep({ net }) {
   return (
     <section className="space-y-6">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Step 4</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Step 5</p>
         <h2 className="mt-2 text-2xl font-semibold text-white">Flattening engine</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
           SnapFold’s static prototype builds a regular faceted prism, unwraps its side faces into a strip, attaches top and bottom cap polygons, and classifies shared edges as folds rather than cuts.

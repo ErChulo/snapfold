@@ -4,12 +4,12 @@
 
 [![Deploy SnapFold to GitHub Pages](https://github.com/ErChulo/snapfold/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/ErChulo/snapfold/actions/workflows/deploy.yml)
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-live-brightgreen)](https://erchulo.github.io/snapfold/)
-![Version](https://img.shields.io/badge/version-v0.1.3-blue)
+![Version](https://img.shields.io/badge/version-v0.2.0--alpha.1-blue)
 ![Browser only](https://img.shields.io/badge/processing-browser--only-6f42c1)
 
 **Live app:** https://erchulo.github.io/snapfold/
 
-SnapFold is a browser-only React/Vite prototype for turning an orbital photo set into a printable papercraft-style unfolding template. It is designed for static hosting on GitHub Pages and performs photo handling, HEIC preview conversion, geometric net generation, and PDF export entirely in the browser. The application shell uses a true `#000000` dark background while keeping the physical Letter-paper preview and exported PDF white. v0.1.3 adds the SnapFold impossible-geometry visual identity, derived from the selected interlocking S/F cube concept.
+SnapFold is a browser-only React/Vite prototype for turning an orbital photo set into a printable papercraft-style unfolding template. It is designed for static hosting on GitHub Pages. v0.2.0-alpha.1 begins the real reconstruction pipeline: ORB image features are extracted locally with OpenCV/WASM, matches are geometrically filtered with a deterministic calibrated eight-point RANSAC implementation, relative camera poses are recovered from the essential matrix, and inlier tracks are triangulated into a sparse 3D diagnostic cloud. The validated Letter-page/PDF pipeline remains available downstream as a legacy proxy until dense surface reconstruction replaces it.
 
 ## Capture protocol
 
@@ -35,20 +35,22 @@ Practical rules:
 
 Geometrically, the preferred camera locations approximate three latitude rings on a sphere or ellipsoid around the object, rather than a single horizontal cylinder.
 
-## What the prototype does
+## What v0.2.0-alpha.1 does
 
 1. Gives a concise three-ring orbital capture recipe.
 2. Accepts JPG, PNG, HEIC, and HEIF files using local browser file APIs.
-3. Derives a manageable faceted prism proxy from the photo count.
-4. Displays the proxy mesh in Three.js / React Three Fiber.
-5. Unfolds the proxy into a planar net.
-6. Classifies cut, mountain-fold, valley-fold, and glue-tab geometry.
-7. Fits the geometry to US Letter paper with 0.25-inch margins and a user-controlled scale from 10% to 100% of maximum printable fit.
-8. Exports a single-sided vector PDF with a project header and engineering legend.
+3. Reads useful EXIF camera metadata when present and estimates intrinsics when it is absent.
+4. Downscales analysis copies locally and extracts ORB keypoints/descriptors through OpenCV/WASM.
+5. Matches nearby views, applies a Lowe-style descriptor-ratio filter, and estimates calibrated epipolar geometry with deterministic RANSAC.
+6. Recovers relative camera rotations/translation directions by essential-matrix decomposition and cheirality testing.
+7. Triangulates accepted correspondences into a sparse 3D point cloud and displays registered camera positions/view directions.
+8. Preserves the existing prism-based paper-net, tab, Letter-page, and PDF pipeline as an explicitly labeled legacy downstream proxy.
 
-## Important prototype boundary
+## Important alpha boundary
 
-SnapFold v0.1.x does **not** yet perform photogrammetry or reconstruct arbitrary 3D geometry from image pixels. The current static frontend uses the number of input views to parameterize an algorithmic prism-like proxy.
+The **Step 3 sparse cloud is photo-derived**. The paper net shown in Steps 4–7 is **not yet generated from that sparse cloud**. Dense multi-view surface reconstruction, global bundle adjustment, curvature-aware panelization, and material-aware unfolding are subsequent milestones.
+
+Monocular structure-from-motion also has arbitrary global scale. v0.2.0-alpha.1 normalizes pair baselines for diagnostic visualization; it does not claim metric dimensions from photographs alone.
 
 The intended development path is:
 
@@ -81,6 +83,9 @@ The production UI uses scalable SVG derivatives of the selected impossible-geome
 - React + Vite
 - Tailwind CSS
 - Three.js via `@react-three/fiber` and `@react-three/drei`
+- OpenCV.js/WASM via `@techstark/opencv-js` for ORB feature extraction and Hamming matching
+- `ml-matrix` for browser-side epipolar geometry, pose decomposition, and triangulation
+- `exifr` for local EXIF camera metadata
 - `heic2any` for browser-side HEIC/HEIF preview conversion
 - `jsPDF` for vector Letter-size PDF generation
 - GitHub Actions + GitHub Pages for automatic static deployment
@@ -173,11 +178,19 @@ SnapFold/
 │   │   ├── Instructions.jsx
 │   │   ├── ModelViewport.jsx
 │   │   ├── NetCanvas.jsx
+│   │   ├── ReconstructionStep.jsx
+│   │   ├── SparseViewport.jsx
 │   │   ├── Simulation.jsx
 │   │   ├── Stepper.jsx
 │   │   └── UploadPanel.jsx
 │   ├── utils/
+│   │   ├── reconstruction/
+│   │   │   ├── linearAlgebra.js
+│   │   │   ├── opencv.js
+│   │   │   ├── photoAnalysis.js
+│   │   │   └── sparseReconstruction.js
 │   │   ├── imageFiles.js
+│   │   ├── materialProfile.js
 │   │   ├── pdfExporter.js
 │   │   └── unfolder.js
 │   ├── App.jsx
@@ -191,6 +204,20 @@ SnapFold/
 └── vite.config.js
 ```
 
+## Material-aware architecture
+
+The project now carries a material-profile contract even though alpha.1 does not yet apply it to unfolding:
+
+```text
+mode
+thicknessMm
+minBendRadiusMm
+kerfMm
+grainDirection
+```
+
+This is reserved for direct-print paper as well as overlay/template workflows for cardstock, chipboard, and bendable cardboard.
+
 ## Next engineering step
 
-Replace `createPrismNet()` with a real browser-side reconstruction adapter. Preserve the working page-fit, engineering-line rendering, glue-tab generation, collision logic, PDF export, and static GitHub Pages deployment while progressively replacing the synthetic proxy with photo-derived geometry.
+Validate alpha.1 against a real ordered orbital photo set. Then harden registration with track chaining and global bundle adjustment before proceeding to dense surface reconstruction. Once a stable dense surface exists, replace the legacy prism with curvature-aware, material-aware panelization and unfolding.

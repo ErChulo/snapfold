@@ -5,10 +5,10 @@ export default function Simulation({ net, scalePercent, setScalePercent, project
   return (
     <section className="space-y-5">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Step 3</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Step 4</p>
         <h2 className="mt-2 text-2xl font-semibold text-white">3D simulation and 2D Letter preview</h2>
         <p className="mt-2 text-sm leading-6 text-zinc-400">
-          The prototype converts the photo count into a {net.sides}-facet prism proxy. The right side is the exact Letter-page layout model used by PDF export.
+          Until dense surface reconstruction lands, this downstream stage deliberately keeps the validated {net.sides}-facet legacy proxy. The sparse reconstruction in Step 3 is real and photo-derived; this paper net is not yet derived from that sparse cloud.
         </p>
       </div>
 
