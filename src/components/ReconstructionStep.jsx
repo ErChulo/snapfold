@@ -28,8 +28,8 @@ export default function ReconstructionStep({
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Step 3</p>
         <h2 className="mt-2 text-2xl font-semibold text-white">Sparse 3D reconstruction</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
-          SnapFold now derives image features, overlap, relative camera poses, and sparse 3D points from the photographs themselves.
-          Everything runs locally in this browser.
+          SnapFold discovers the overlap graph between views first, then registers the strongest connected camera network.
+          For photo sets up to 24 images, every image pair is tested; upload order does not determine the reconstruction.
         </p>
       </div>
 
@@ -67,12 +67,14 @@ export default function ReconstructionStep({
 
       {reconstruction && (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
             <Metric label="Photos" value={reconstruction.photosAnalyzed} />
             <Metric label="ORB features" value={reconstruction.totalFeatures.toLocaleString()} />
+            <Metric label="Pairs tested" value={reconstruction.overlapPairsTested?.toLocaleString() ?? '—'} />
+            <Metric label="Verified edges" value={reconstruction.acceptedPairEdges?.toLocaleString() ?? '—'} />
+            <Metric label="Main component" value={`${reconstruction.mainComponentSize ?? reconstruction.registeredCameras}/${reconstruction.photosAnalyzed}`} />
             <Metric label="Registered cameras" value={`${reconstruction.registeredCameras}/${reconstruction.photosAnalyzed}`} />
-            <Metric label="Geometric inliers" value={reconstruction.totalInliers.toLocaleString()} />
-            <Metric label="Sparse 3D points" value={reconstruction.pointCount.toLocaleString()} />
+            <Metric label="Sparse points" value={reconstruction.pointCount.toLocaleString()} />
           </div>
 
           <div>
@@ -83,7 +85,11 @@ export default function ReconstructionStep({
             <SparseViewport result={reconstruction} />
           </div>
 
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid gap-3 lg:grid-cols-3">
+            <div className="rounded-2xl border border-zinc-800 bg-black p-5 text-sm leading-6 text-zinc-400">
+              <strong className="text-zinc-200">Verified overlap graph:</strong>{' '}
+              {reconstruction.acceptedPairEdges ?? 0} geometric edges in {reconstruction.connectedComponents ?? 0} connected component{reconstruction.connectedComponents === 1 ? '' : 's'}.
+            </div>
             <div className="rounded-2xl border border-zinc-800 bg-black p-5 text-sm leading-6 text-zinc-400">
               <strong className="text-zinc-200">Camera intrinsics:</strong>{' '}
               {reconstruction.intrinsicSources.join(' + ')}.
@@ -96,8 +102,13 @@ export default function ReconstructionStep({
 
           {reconstruction.failedCameras > 0 && (
             <div className="rounded-2xl border border-amber-900 bg-amber-950/20 p-5 text-sm leading-6 text-amber-200">
-              {reconstruction.failedCameras} view{reconstruction.failedCameras === 1 ? '' : 's'} could not be registered.
-              More overlap, texture, or steadier capture geometry may be required.
+              {reconstruction.failedCameras} view{reconstruction.failedCameras === 1 ? '' : 's'} remain outside the strongest verified overlap component.
+              This is now a graph-connectivity diagnostic, not an assumption that the preceding uploaded image must match.
+              {reconstruction.failedNames?.length > 0 && (
+                <div className="mt-2 text-xs text-amber-300/80">
+                  Unregistered: {reconstruction.failedNames.join(', ')}
+                </div>
+              )}
             </div>
           )}
         </>
@@ -105,7 +116,7 @@ export default function ReconstructionStep({
 
       {!reconstruction && !running && (
         <div className="rounded-2xl border border-zinc-800 bg-black p-5 text-sm leading-6 text-zinc-500">
-          Alpha target: establish real image correspondences and camera geometry before replacing the downstream proxy mesh.
+          Alpha target: establish a robust overlap graph and camera network before dense surface reconstruction.
         </div>
       )}
     </section>

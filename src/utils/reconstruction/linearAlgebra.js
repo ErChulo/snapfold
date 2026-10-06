@@ -263,3 +263,19 @@ export function cameraPointToWorld(point, pose) {
   const shifted = point.map((value, index) => value - pose.translation[index])
   return matVec3(Rt, shifted)
 }
+
+
+export function invertRelativePose(rotation, translation) {
+  const R = rotation.transpose()
+  const rotated = matVec3(R, translation)
+  return {
+    R,
+    t: rotated.map((value) => -value),
+  }
+}
+
+export function relativeRotationAngle(rotation) {
+  const trace = rotation.get(0, 0) + rotation.get(1, 1) + rotation.get(2, 2)
+  const cosine = Math.max(-1, Math.min(1, (trace - 1) / 2))
+  return Math.acos(cosine)
+}

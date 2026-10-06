@@ -128,7 +128,7 @@ export default function App() {
             <img src={`${import.meta.env.BASE_URL}brand/snapfold-mark.svg`} alt="" className="h-11 w-11 shrink-0" />
             <div>
               <div className="text-lg font-bold tracking-tight text-white">SnapFold</div>
-              <div className="text-xs text-zinc-500">Browser reconstruction + papercraft prototype · v0.2.0-alpha.2</div>
+              <div className="text-xs text-zinc-500">Browser reconstruction + papercraft prototype · v0.2.0-alpha.3</div>
             </div>
           </div>
           <div className="rounded-full border border-emerald-900 bg-emerald-950/50 px-3 py-1.5 text-xs font-semibold text-emerald-300">Browser-only processing</div>
