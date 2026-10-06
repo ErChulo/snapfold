@@ -24,7 +24,7 @@ export default function DesktopReconstructionStep({
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Step 3 · Native reconstruction</p>
         <h2 className="mt-2 text-2xl font-semibold text-white">COLMAP Structure-from-Motion</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
-          This path uses COLMAP SIFT features, exhaustive geometric matching, incremental SfM, and COLMAP's bundle adjustment.
+          This path uses memory-limited COLMAP SIFT features, exhaustive geometric matching, incremental SfM, and COLMAP's bundle adjustment.
           It does not use SnapFold's earlier browser ORB reconstruction experiment.
         </p>
       </div>
