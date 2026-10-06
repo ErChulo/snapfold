@@ -45,8 +45,8 @@ jobs:
         run: |
           command -v colmap
           colmap -h | head -40
-          colmap feature_extractor -h 2>&1 | grep -E "SiftExtraction.(use_gpu|max_image_size)"
-          colmap exhaustive_matcher -h 2>&1 | grep -E "SiftMatching.(use_gpu|guided_matching)"
+          colmap feature_extractor -h 2>&1 | grep -E "SiftExtraction.(use_gpu|num_threads|max_image_size|max_num_features)"
+          colmap exhaustive_matcher -h 2>&1 | grep -E "SiftMatching.(use_gpu|num_threads|guided_matching)"
 
       - name: Smoke-test real COLMAP reconstruction
         shell: bash
@@ -64,9 +64,11 @@ jobs:
 
           test "$(find /tmp/snapfold-colmap-smoke/images -type f | wc -l)" -ge 12
 
-          colmap feature_extractor             --database_path /tmp/snapfold-colmap-smoke/database.db             --image_path /tmp/snapfold-colmap-smoke/images             --ImageReader.single_camera 1             --ImageReader.camera_model SIMPLE_RADIAL             --SiftExtraction.use_gpu 0             --SiftExtraction.max_image_size 1600
+          OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+          colmap feature_extractor             --database_path /tmp/snapfold-colmap-smoke/database.db             --image_path /tmp/snapfold-colmap-smoke/images             --ImageReader.single_camera 1             --ImageReader.camera_model SIMPLE_RADIAL             --SiftExtraction.use_gpu 0             --SiftExtraction.num_threads 1             --SiftExtraction.max_image_size 1200             --SiftExtraction.max_num_features 4096
 
-          colmap exhaustive_matcher             --database_path /tmp/snapfold-colmap-smoke/database.db             --SiftMatching.use_gpu 0             --SiftMatching.guided_matching 1
+          OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+          colmap exhaustive_matcher             --database_path /tmp/snapfold-colmap-smoke/database.db             --SiftMatching.use_gpu 0             --SiftMatching.num_threads 1             --SiftMatching.guided_matching 1
 
           colmap mapper             --database_path /tmp/snapfold-colmap-smoke/database.db             --image_path /tmp/snapfold-colmap-smoke/images             --output_path /tmp/snapfold-colmap-smoke/sparse
 
@@ -120,7 +122,7 @@ jobs:
       - name: Upload desktop artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SnapFold-v0.3.0-alpha.1-linux-deb
+          name: SnapFold-v0.3.0-alpha.2-linux-deb
           compression-level: 0
           if-no-files-found: error
           path: |
@@ -132,9 +134,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          TAG="desktop-v0.3.0-alpha.1"
+          TAG="desktop-v0.3.0-alpha.2"
           if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG"               --target "$GITHUB_SHA"               --prerelease               --title "SnapFold Desktop v0.3.0-alpha.1"               --notes "Linux Mint 22.x / Ubuntu 24.04 native reconstruction build. Install the .deb with APT; its package metadata depends on Ubuntu's COLMAP package, so APT installs the native engine automatically. SnapFold then runs CPU SIFT extraction, exhaustive matching, incremental SfM and bundle adjustment, and displays the real COLMAP PLY reconstruction."
+            gh release create "$TAG"               --target "$GITHUB_SHA"               --prerelease               --title "SnapFold Desktop v0.3.0-alpha.2"               --notes "Low-memory Linux Mint 22.x / Ubuntu 24.04 native reconstruction build. This revision caps SIFT extraction and matching to one thread, caps feature extraction at 1200px and 4096 features per image, and constrains BLAS/OpenMP threading to prevent the SIGKILL/OOM failure seen on the first desktop test. SnapFold still runs real COLMAP SfM and bundle adjustment and displays the resulting PLY reconstruction."
           fi
 
           gh release upload "$TAG"             src-tauri/target/release/bundle/deb/*.deb             SnapFold-desktop-SHA256SUMS.txt             --clobber
