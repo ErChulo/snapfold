@@ -45,8 +45,8 @@ jobs:
         run: |
           command -v colmap
           colmap -h | head -40
-          colmap feature_extractor -h | grep -E "SiftExtraction.(use_gpu|max_image_size)"
-          colmap exhaustive_matcher -h | grep -E "SiftMatching.(use_gpu|guided_matching)"
+          colmap feature_extractor -h 2>&1 | grep -E "SiftExtraction.(use_gpu|max_image_size)"
+          colmap exhaustive_matcher -h 2>&1 | grep -E "SiftMatching.(use_gpu|guided_matching)"
 
       - name: Install frontend dependencies
         run: npm install --no-audit --no-fund
