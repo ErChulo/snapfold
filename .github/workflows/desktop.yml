@@ -122,7 +122,7 @@ jobs:
       - name: Upload desktop artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SnapFold-v0.3.0-alpha.2-linux-deb
+          name: SnapFold-v0.3.0-alpha.3-linux-deb
           compression-level: 0
           if-no-files-found: error
           path: |
@@ -134,9 +134,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          TAG="desktop-v0.3.0-alpha.2"
+          TAG="desktop-v0.3.0-alpha.3"
           if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG"               --target "$GITHUB_SHA"               --prerelease               --title "SnapFold Desktop v0.3.0-alpha.2"               --notes "Low-memory Linux Mint 22.x / Ubuntu 24.04 native reconstruction build. This revision caps SIFT extraction and matching to one thread, caps feature extraction at 1200px and 4096 features per image, and constrains BLAS/OpenMP threading to prevent the SIGKILL/OOM failure seen on the first desktop test. SnapFold still runs real COLMAP SfM and bundle adjustment and displays the resulting PLY reconstruction."
+            gh release create "$TAG"               --target "$GITHUB_SHA"               --prerelease               --title "SnapFold Desktop v0.3.0-alpha.3"               --notes "Linux Mint 22.x / Ubuntu 24.04 native reconstruction build. Alpha.3 keeps the low-memory COLMAP settings and removes sparse Delaunay meshing from the blocking reconstruction path. After SIFT, matching, incremental SfM, bundle adjustment, and PLY export, SnapFold immediately displays the real COLMAP point cloud instead of hanging at 91%."
           fi
 
           gh release upload "$TAG"             src-tauri/target/release/bundle/deb/*.deb             SnapFold-desktop-SHA256SUMS.txt             --clobber

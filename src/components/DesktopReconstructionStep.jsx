@@ -25,7 +25,7 @@ export default function DesktopReconstructionStep({
         <h2 className="mt-2 text-2xl font-semibold text-white">COLMAP Structure-from-Motion</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
           This path uses memory-limited COLMAP SIFT features, exhaustive geometric matching, incremental SfM, and COLMAP's bundle adjustment.
-          It does not use SnapFold's earlier browser ORB reconstruction experiment.
+          As soon as the verified COLMAP PLY is exported, SnapFold displays it. Surface meshing no longer blocks the reconstruction result.
         </p>
       </div>
 
@@ -75,10 +75,8 @@ export default function DesktopReconstructionStep({
           <DesktopModelViewport result={result} />
 
           <div className="rounded-2xl border border-emerald-900 bg-emerald-950/20 p-5 text-sm leading-6 text-emerald-200">
-            This geometry came from the selected photographs through COLMAP. The sparse point cloud is always preserved.
-            {result.meshPlyBase64
-              ? ' SnapFold also produced a Delaunay surface from the COLMAP sparse reconstruction.'
-              : ' Sparse meshing was not usable for this dataset, so the viewer is showing COLMAP points rather than inventing a surface.'}
+            This geometry came from the selected photographs through COLMAP. SnapFold is showing the verified sparse point cloud immediately.
+            Surface generation is intentionally deferred to a later stage instead of blocking or fabricating a mesh.
           </div>
 
           <div className="rounded-2xl border border-zinc-800 bg-black p-4 text-xs leading-5 text-zinc-500">

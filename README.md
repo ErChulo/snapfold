@@ -4,13 +4,13 @@
 
 [![Deploy SnapFold to GitHub Pages](https://github.com/ErChulo/snapfold/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/ErChulo/snapfold/actions/workflows/deploy.yml)
 [![Build SnapFold Desktop](https://github.com/ErChulo/snapfold/actions/workflows/desktop.yml/badge.svg?branch=main)](https://github.com/ErChulo/snapfold/actions/workflows/desktop.yml)
-![Version](https://img.shields.io/badge/version-v0.3.0--alpha.2-blue)
+![Version](https://img.shields.io/badge/version-v0.3.0--alpha.3-blue)
 
 SnapFold turns overlapping photographs into a 3D reconstruction and is being developed toward curvature-aware printable paper/cardboard models.
 
-## v0.3.0-alpha.2: native reconstruction
+## v0.3.0-alpha.3: native reconstruction
 
-The serious reconstruction path is now a **Tauri/React desktop application using native COLMAP**, separate from the earlier browser SfM experiment. Alpha.2 is deliberately tuned for lower-memory Linux systems after the first field test was killed during SIFT extraction.
+The serious reconstruction path is now a **Tauri/React desktop application using native COLMAP**, separate from the earlier browser SfM experiment. Alpha.3 keeps the lower-memory Linux settings and fixes the field failure where the app reached 91% and waited indefinitely in optional sparse Delaunay meshing.
 
 ```text
 choose local photos
@@ -19,8 +19,9 @@ choose local photos
 → incremental Structure-from-Motion
 → triangulation + bundle adjustment
 → colored sparse PLY
-→ optional sparse Delaunay surface
-→ Three.js model viewer
+→ Three.js point-cloud viewer immediately
+
+Sparse Delaunay meshing is no longer allowed to block the reconstruction result.
 ```
 
 No synthetic prism is used in the desktop reconstruction workflow.
@@ -30,7 +31,7 @@ No synthetic prism is used in the desktop reconstruction workflow.
 GitHub Actions publishes a Debian package in the prerelease:
 
 ```text
-SnapFold Desktop v0.3.0-alpha.2
+SnapFold Desktop v0.3.0-alpha.3
 ```
 
 Install it with:

@@ -380,58 +380,12 @@ fn reconstruct_blocking(
         return Err("COLMAP produced a model, but the exported point cloud contains zero vertices.".to_string());
     }
 
-    let mesh_ply = workspace.join("colmap-sparse-mesh.ply");
-    emit_progress(
-        &app,
-        "meshing",
-        91.0,
-        "Attempting a visibility-aware Delaunay surface…",
-        None,
-    );
-
-    let mesh_attempt = run_colmap(
-        &app,
-        &colmap,
-        env_root.as_deref(),
-        &workspace,
-        "meshing",
-        91.0,
-        "Attempting a visibility-aware Delaunay surface…",
-        &[
-            "delaunay_mesher".into(),
-            "--input_path".into(),
-            model_dir.to_string_lossy().to_string(),
-            "--output_path".into(),
-            mesh_ply.to_string_lossy().to_string(),
-            "--input_type".into(),
-            "sparse".into(),
-        ],
-    );
-
-    let (mesh_ply_base64, face_count) = if mesh_attempt.is_ok() && mesh_ply.exists() {
-        match fs::read(&mesh_ply) {
-            Ok(bytes) => {
-                let (_, faces) = parse_ply_counts(&bytes);
-                if faces > 0 {
-                    (Some(BASE64.encode(bytes)), faces)
-                } else {
-                    (None, 0)
-                }
-            }
-            Err(_) => (None, 0),
-        }
-    } else {
-        if let Err(detail) = mesh_attempt {
-            emit_progress(
-                &app,
-                "meshing",
-                95.0,
-                "Sparse point cloud is valid; optional sparse meshing was skipped.",
-                Some(tail(&detail, 1400)),
-            );
-        }
-        (None, 0)
-    };
+    // v0.3.0-alpha.3 deliberately returns the valid COLMAP reconstruction
+    // immediately after PLY export. Sparse Delaunay meshing is not part of
+    // this critical path because it can be very slow or non-terminating for
+    // some datasets and must never hide an already successful reconstruction.
+    let mesh_ply_base64 = None;
+    let face_count = 0usize;
 
     emit_progress(
         &app,
@@ -448,7 +402,7 @@ fn reconstruct_blocking(
         point_ply_base64: BASE64.encode(point_bytes),
         mesh_ply_base64,
         workspace_path: workspace.to_string_lossy().to_string(),
-        engine_label: "COLMAP 3.9.1 CPU (Ubuntu Noble)".to_string(),
+        engine_label: "COLMAP 3.9.1 CPU · low-memory SfM".to_string(),
     })
 }
 
