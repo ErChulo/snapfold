@@ -152,6 +152,17 @@ jobs:
 
           "$INTERFACE" -i dense -o scene.mvs --image-folder images --max-threads 1
 
+          # OpenMVS CPU SGM requires two passes: first compute/save
+          # disparity maps (-1), then fuse those maps (-2).
+          OMP_NUM_THREADS=2 "$DENSIFY" scene.mvs \
+            -o scene_sgm.mvs \
+            --fusion-mode -1 \
+            --resolution-level 2 \
+            --max-resolution 1000 \
+            --min-resolution 320 \
+            --number-views 4 \
+            --max-threads 2
+
           OMP_NUM_THREADS=2 "$DENSIFY" scene.mvs \
             -o scene_dense.mvs \
             --fusion-mode -2 \
