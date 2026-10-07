@@ -551,14 +551,47 @@ fn reconstruct_blocking(
         Duration::from_secs(15 * 60),
     )?;
 
+    // OpenMVS CPU SGM is explicitly two-stage:
+    //   -1 computes and saves disparity maps
+    //   -2 fuses those saved disparity maps into a dense point cloud.
+    // Calling -2 directly produces no dense depths.
     run_tool(
         &app,
         &densify,
         openmvs_root.as_deref(),
         &workspace,
-        "dense",
+        "sgm_disparity",
         68.0,
-        "Building a dense CPU stereo reconstruction with OpenMVS SGM…",
+        "Computing CPU SGM disparity maps with OpenMVS…",
+        &[
+            "scene.mvs".into(),
+            "-o".into(),
+            "scene_sgm.mvs".into(),
+            "--fusion-mode".into(),
+            "-1".into(),
+            "--resolution-level".into(),
+            "2".into(),
+            "--max-resolution".into(),
+            "1200".into(),
+            "--min-resolution".into(),
+            "320".into(),
+            "--number-views".into(),
+            "4".into(),
+            "--max-threads".into(),
+            "2".into(),
+        ],
+        2,
+        Duration::from_secs(90 * 60),
+    )?;
+
+    run_tool(
+        &app,
+        &densify,
+        openmvs_root.as_deref(),
+        &workspace,
+        "sgm_fusion",
+        82.0,
+        "Fusing OpenMVS SGM disparity maps into a dense point cloud…",
         &[
             "scene.mvs".into(),
             "-o".into(),
@@ -581,7 +614,7 @@ fn reconstruct_blocking(
             "2".into(),
         ],
         2,
-        Duration::from_secs(90 * 60),
+        Duration::from_secs(45 * 60),
     )?;
 
     let dense_ply = workspace.join("scene_dense.ply");
@@ -600,7 +633,7 @@ fn reconstruct_blocking(
         openmvs_root.as_deref(),
         &workspace,
         "mesh",
-        90.0,
+        93.0,
         "Reconstructing the dense surface mesh…",
         &[
             "scene_dense.mvs".into(),
