@@ -543,7 +543,7 @@ fn reconstruct_blocking(
             "-o".into(),
             "scene.mvs".into(),
             "--image-folder".into(),
-            dense_dir.join("images").to_string_lossy().to_string(),
+            "images".into(),
             "--max-threads".into(),
             "1".into(),
         ],
