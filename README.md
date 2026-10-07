@@ -10,7 +10,7 @@ SnapFold turns overlapping photographs into a 3D reconstruction and is being dev
 
 ## v0.3.0-alpha.4: dense CPU reconstruction for Intel graphics
 
-The field machine reports Intel Tiger Lake-LP GT2 / UHD Graphics G4 and therefore has no NVIDIA CUDA device. SnapFold now uses COLMAP for the sparse camera solution and **OpenMVS 2.4.0 CPU Semi-Global Matching** for dense reconstruction and surface meshing.
+The field machine reports Intel Tiger Lake-LP GT2 / UHD Graphics G4 and therefore has no NVIDIA CUDA device. SnapFold now uses COLMAP for the sparse camera solution and **OpenMVS 2.4.0 CPU PatchMatch** for dense reconstruction and surface meshing.
 
 ```text
 choose local photos
@@ -19,12 +19,12 @@ choose local photos
 → incremental SfM + bundle adjustment
 → COLMAP image undistortion
 → OpenMVS import
-→ OpenMVS CPU SGM disparity maps\n→ OpenMVS CPU disparity fusion → dense point cloud
+→ OpenMVS CPU PatchMatch depth maps + dense fusion
 → OpenMVS surface reconstruction
 → Three.js dense mesh viewer
 ```
 
-The desktop package bundles the official OpenMVS 2.4.0 Ubuntu x64 release and verifies its SHA-256 before packaging. OpenMVS CPU SGM is run in its required two-stage form: first disparity-map estimation (`fusion-mode -1`), then disparity fusion (`fusion-mode -2`). The dense stages use conservative resolution/thread settings for lower-memory laptops. Each native stage also has a hard timeout so SnapFold cannot wait forever at a fixed progress percentage.
+The desktop package bundles the official OpenMVS 2.4.0 Ubuntu x64 release and verifies its SHA-256 before packaging. OpenMVS uses its native CPU PatchMatch estimator when no CUDA device is available. The dense stage uses conservative resolution/thread settings for lower-memory laptops.
 
 SnapFold reports success only after both a non-empty dense PLY and a mesh containing faces have been produced.
 
@@ -57,7 +57,7 @@ Rust / Tauri
     ↓
 COLMAP 3.9.1 CPU
     ↓ calibrated sparse scene
-OpenMVS 2.4.0 CPU SGM
+OpenMVS 2.4.0 CPU PatchMatch
     ↓ dense point cloud + mesh
 Three.js viewer
 ```
