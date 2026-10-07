@@ -1,6 +1,6 @@
 [package]
 name = "snapfold"
-version = "0.3.0-alpha.1"
+version = "0.3.0-alpha.4"
 description = "SnapFold desktop photogrammetry and papercraft"
 authors = ["SnapFold"]
 edition = "2021"

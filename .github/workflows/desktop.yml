@@ -22,7 +22,7 @@ concurrency:
 jobs:
   linux-desktop:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 120
 
     steps:
       - name: Checkout
@@ -36,10 +36,52 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Tauri and reconstruction dependencies
+      - name: Install Tauri and COLMAP dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y             build-essential             colmap             file             libayatana-appindicator3-dev             librsvg2-dev             libssl-dev             libwebkit2gtk-4.1-dev             libxdo-dev             patchelf
+          sudo apt-get install -y \
+            build-essential \
+            colmap \
+            file \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            libwebkit2gtk-4.1-dev \
+            libxdo-dev \
+            patchelf \
+            unzip \
+            wget
+
+      - name: Bundle official OpenMVS 2.4.0 Ubuntu CPU tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf src-tauri/openmvs /tmp/OpenMVS_Ubuntu_x64.zip
+          mkdir -p src-tauri/openmvs
+          wget -q \
+            https://github.com/cdcseacave/openMVS/releases/download/v2.4.0/OpenMVS_Ubuntu_x64.zip \
+            -O /tmp/OpenMVS_Ubuntu_x64.zip
+          echo "7104ae1ddd6ca38fbca9e0e4a70b20af59e21e0b497eb7181c864fbf38ca8d00  /tmp/OpenMVS_Ubuntu_x64.zip" | sha256sum -c -
+          unzip -q /tmp/OpenMVS_Ubuntu_x64.zip -d src-tauri/openmvs
+
+          INTERFACE="$(find src-tauri/openmvs -type f -name InterfaceCOLMAP -print -quit)"
+          DENSIFY="$(find src-tauri/openmvs -type f -name DensifyPointCloud -print -quit)"
+          RECONSTRUCT="$(find src-tauri/openmvs -type f -name ReconstructMesh -print -quit)"
+          test -n "$INTERFACE"
+          test -n "$DENSIFY"
+          test -n "$RECONSTRUCT"
+          chmod +x "$INTERFACE" "$DENSIFY" "$RECONSTRUCT"
+
+          LIB_DIRS="$(find src-tauri/openmvs -type f -name '*.so*' -printf '%h\n' | sort -u | paste -sd: -)"
+          export LD_LIBRARY_PATH="$LIB_DIRS:${LD_LIBRARY_PATH:-}"
+
+          "$DENSIFY" -h > /tmp/densify-help.txt 2>&1 || true
+          grep -q "fusion-mode" /tmp/densify-help.txt
+          grep -q "resolution-level" /tmp/densify-help.txt
+
+          echo "OpenMVS InterfaceCOLMAP: $INTERFACE"
+          echo "OpenMVS DensifyPointCloud: $DENSIFY"
+          echo "OpenMVS ReconstructMesh: $RECONSTRUCT"
 
       - name: Verify native COLMAP engine
         run: |
@@ -48,50 +90,109 @@ jobs:
           colmap feature_extractor -h 2>&1 | grep -E "SiftExtraction.(use_gpu|num_threads|max_image_size|max_num_features)"
           colmap exhaustive_matcher -h 2>&1 | grep -E "SiftMatching.(use_gpu|num_threads|guided_matching)"
 
-      - name: Smoke-test real COLMAP reconstruction
+      - name: Smoke-test real CPU dense reconstruction
         shell: bash
         run: |
           set -euo pipefail
 
-          rm -rf /tmp/snapfold-colmap-smoke
-          mkdir -p /tmp/snapfold-colmap-smoke/source /tmp/snapfold-colmap-smoke/images /tmp/snapfold-colmap-smoke/sparse
+          rm -rf /tmp/snapfold-dense-smoke
+          mkdir -p /tmp/snapfold-dense-smoke/source /tmp/snapfold-dense-smoke/images /tmp/snapfold-dense-smoke/sparse /tmp/snapfold-dense-smoke/dense
 
-          wget -q             https://github.com/colmap/colmap/releases/download/3.11.1/south-building.zip             -O /tmp/snapfold-colmap-smoke/south-building.zip
+          wget -q \
+            https://github.com/colmap/colmap/releases/download/3.11.1/south-building.zip \
+            -O /tmp/snapfold-dense-smoke/south-building.zip
+          unzip -q /tmp/snapfold-dense-smoke/south-building.zip -d /tmp/snapfold-dense-smoke/source
 
-          unzip -q /tmp/snapfold-colmap-smoke/south-building.zip             -d /tmp/snapfold-colmap-smoke/source
+          find /tmp/snapfold-dense-smoke/source -type f \
+            \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \) \
+            | sort | head -24 \
+            | while read -r image; do cp "$image" /tmp/snapfold-dense-smoke/images/; done
 
-          find /tmp/snapfold-colmap-smoke/source -type f             \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \)             | sort             | head -32             | while read -r image; do cp "$image" /tmp/snapfold-colmap-smoke/images/; done
-
-          test "$(find /tmp/snapfold-colmap-smoke/images -type f | wc -l)" -ge 12
+          cd /tmp/snapfold-dense-smoke
 
           OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
-          colmap feature_extractor             --database_path /tmp/snapfold-colmap-smoke/database.db             --image_path /tmp/snapfold-colmap-smoke/images             --ImageReader.single_camera 1             --ImageReader.camera_model SIMPLE_RADIAL             --SiftExtraction.use_gpu 0             --SiftExtraction.num_threads 1             --SiftExtraction.max_image_size 1200             --SiftExtraction.max_num_features 4096
+          colmap feature_extractor \
+            --database_path database.db \
+            --image_path images \
+            --ImageReader.single_camera 1 \
+            --ImageReader.camera_model SIMPLE_RADIAL \
+            --SiftExtraction.use_gpu 0 \
+            --SiftExtraction.num_threads 1 \
+            --SiftExtraction.max_image_size 1200 \
+            --SiftExtraction.max_num_features 4096
 
           OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
-          colmap exhaustive_matcher             --database_path /tmp/snapfold-colmap-smoke/database.db             --SiftMatching.use_gpu 0             --SiftMatching.num_threads 1             --SiftMatching.guided_matching 1
+          colmap exhaustive_matcher \
+            --database_path database.db \
+            --SiftMatching.use_gpu 0 \
+            --SiftMatching.num_threads 1 \
+            --SiftMatching.guided_matching 1
 
-          colmap mapper             --database_path /tmp/snapfold-colmap-smoke/database.db             --image_path /tmp/snapfold-colmap-smoke/images             --output_path /tmp/snapfold-colmap-smoke/sparse
+          OMP_NUM_THREADS=1 colmap mapper \
+            --database_path database.db \
+            --image_path images \
+            --output_path sparse
 
-          MODEL_DIR="$(find /tmp/snapfold-colmap-smoke/sparse -mindepth 1 -maxdepth 1 -type d -print -quit)"
+          MODEL_DIR="$(find sparse -mindepth 1 -maxdepth 1 -type d -print -quit)"
           test -n "$MODEL_DIR"
           test -s "$MODEL_DIR/points3D.bin"
 
-          colmap model_converter             --input_path "$MODEL_DIR"             --output_path /tmp/snapfold-colmap-smoke/model.ply             --output_type PLY
+          colmap image_undistorter \
+            --image_path images \
+            --input_path "$MODEL_DIR" \
+            --output_path dense \
+            --output_type COLMAP \
+            --max_image_size 1200
+
+          INTERFACE="$GITHUB_WORKSPACE/$(find "$GITHUB_WORKSPACE/src-tauri/openmvs" -type f -name InterfaceCOLMAP -printf '%P\n' -quit | sed 's#^#src-tauri/openmvs/#')"
+          DENSIFY="$GITHUB_WORKSPACE/$(find "$GITHUB_WORKSPACE/src-tauri/openmvs" -type f -name DensifyPointCloud -printf '%P\n' -quit | sed 's#^#src-tauri/openmvs/#')"
+          RECONSTRUCT="$GITHUB_WORKSPACE/$(find "$GITHUB_WORKSPACE/src-tauri/openmvs" -type f -name ReconstructMesh -printf '%P\n' -quit | sed 's#^#src-tauri/openmvs/#')"
+          LIB_DIRS="$(find "$GITHUB_WORKSPACE/src-tauri/openmvs" -type f -name '*.so*' -printf '%h\n' | sort -u | paste -sd: -)"
+          export LD_LIBRARY_PATH="$LIB_DIRS:${LD_LIBRARY_PATH:-}"
+
+          "$INTERFACE" -i dense -o scene.mvs --image-folder dense/images --max-threads 1
+
+          OMP_NUM_THREADS=2 "$DENSIFY" scene.mvs \
+            -o scene_dense.mvs \
+            --fusion-mode -2 \
+            --resolution-level 2 \
+            --max-resolution 1000 \
+            --min-resolution 320 \
+            --number-views 4 \
+            --max-threads 2 \
+            --estimate-colors 2 \
+            --estimate-normals 2
+
+          test -s scene_dense.ply
+
+          OMP_NUM_THREADS=2 "$RECONSTRUCT" scene_dense.mvs \
+            -p scene_dense.ply \
+            -o scene_mesh.mvs \
+            --max-threads 2 \
+            --target-face-num 100000
+
+          test -s scene_mesh.ply
 
           python3 - <<'PY'
           from pathlib import Path
 
-          path = Path("/tmp/snapfold-colmap-smoke/model.ply")
-          data = path.read_bytes()[:32768].decode("ascii", errors="ignore")
-          count = 0
-          for line in data.splitlines():
-              if line.startswith("element vertex "):
-                  count = int(line.split()[-1])
-                  break
+          def counts(path):
+              data = Path(path).read_bytes()[:32768].decode("ascii", errors="ignore")
+              vertices = faces = 0
+              for line in data.splitlines():
+                  if line.startswith("element vertex "):
+                      vertices = int(line.split()[-1])
+                  elif line.startswith("element face "):
+                      faces = int(line.split()[-1])
+                  elif line.strip() == "end_header":
+                      break
+              return vertices, faces
 
-          print(f"Smoke reconstruction PLY vertices: {count}")
-          if count < 100:
-              raise SystemExit(f"Smoke reconstruction is too small: {count} vertices")
+          points, _ = counts("scene_dense.ply")
+          mesh_vertices, faces = counts("scene_mesh.ply")
+          print(f"CPU dense smoke: {points} dense points, {mesh_vertices} mesh vertices, {faces} faces")
+          if points < 500 or faces < 100:
+              raise SystemExit("Dense reconstruction smoke test produced insufficient geometry")
           PY
 
       - name: Install frontend dependencies
@@ -108,7 +209,7 @@ jobs:
       - name: Build Linux Debian package
         run: npm run tauri build -- --bundles deb
 
-      - name: Verify Debian dependencies and package
+      - name: Verify Debian package
         shell: bash
         run: |
           DEB="$(find src-tauri/target/release/bundle/deb -type f -name "*.deb" -print -quit)"
@@ -116,13 +217,16 @@ jobs:
           dpkg-deb -I "$DEB" | tee /tmp/deb-info.txt
           grep -i "Depends:.*colmap" /tmp/deb-info.txt
           file "$DEB"
+          dpkg-deb -c "$DEB" | grep -q "InterfaceCOLMAP"
+          dpkg-deb -c "$DEB" | grep -q "DensifyPointCloud"
+          dpkg-deb -c "$DEB" | grep -q "ReconstructMesh"
           sha256sum "$DEB" > SnapFold-desktop-SHA256SUMS.txt
           cat SnapFold-desktop-SHA256SUMS.txt
 
       - name: Upload desktop artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SnapFold-v0.3.0-alpha.3-linux-deb
+          name: SnapFold-v0.3.0-alpha.4-linux-deb
           compression-level: 0
           if-no-files-found: error
           path: |
@@ -134,9 +238,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          TAG="desktop-v0.3.0-alpha.3"
+          TAG="desktop-v0.3.0-alpha.4"
           if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG"               --target "$GITHUB_SHA"               --prerelease               --title "SnapFold Desktop v0.3.0-alpha.3"               --notes "Linux Mint 22.x / Ubuntu 24.04 native reconstruction build. Alpha.3 keeps the low-memory COLMAP settings and removes sparse Delaunay meshing from the blocking reconstruction path. After SIFT, matching, incremental SfM, bundle adjustment, and PLY export, SnapFold immediately displays the real COLMAP point cloud instead of hanging at 91%."
+            gh release create "$TAG" \
+              --target "$GITHUB_SHA" \
+              --prerelease \
+              --title "SnapFold Desktop v0.3.0-alpha.4" \
+              --notes "Intel-compatible dense reconstruction build. COLMAP performs CPU SfM and bundle adjustment; bundled OpenMVS 2.4.0 then performs CPU Semi-Global Matching, dense point-cloud reconstruction, and surface meshing. No NVIDIA CUDA is required. The build includes hard stage timeouts and does not report success unless a dense cloud and non-empty mesh are both produced."
           fi
 
-          gh release upload "$TAG"             src-tauri/target/release/bundle/deb/*.deb             SnapFold-desktop-SHA256SUMS.txt             --clobber
+          gh release upload "$TAG" \
+            src-tauri/target/release/bundle/deb/*.deb \
+            SnapFold-desktop-SHA256SUMS.txt \
+            --clobber

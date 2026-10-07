@@ -127,7 +127,7 @@ export default function App() {
       running: true,
       stage: 'starting',
       percent: 0,
-      message: 'Starting the native COLMAP reconstruction…',
+      message: 'Starting dense COLMAP + OpenMVS reconstruction…',
     })
 
     let unlisten = null
@@ -142,7 +142,7 @@ export default function App() {
         running: false,
         stage: 'complete',
         percent: 100,
-        message: 'COLMAP reconstruction ready.',
+        message: 'Dense reconstruction ready.',
       })
     } catch (error) {
       const message = typeof error === 'string'
@@ -225,12 +225,12 @@ export default function App() {
             <div>
               <div className="text-lg font-bold tracking-tight text-white">SnapFold</div>
               <div className="text-xs text-zinc-500">
-                {desktopMode ? 'Native COLMAP reconstruction' : 'Web reconstruction diagnostic'} · v0.3.0-alpha.3
+                {desktopMode ? 'Dense COLMAP + OpenMVS reconstruction' : 'Web reconstruction diagnostic'} · v0.3.0-alpha.4
               </div>
             </div>
           </div>
           <div className="rounded-full border border-emerald-900 bg-emerald-950/50 px-3 py-1.5 text-xs font-semibold text-emerald-300">
-            {desktopMode ? 'Local desktop · COLMAP' : legacyMode ? 'Legacy prism demo active' : 'Browser-only'}
+            {desktopMode ? 'Local desktop · COLMAP + OpenMVS' : legacyMode ? 'Legacy prism demo active' : 'Browser-only'}
           </div>
         </div>
       </header>

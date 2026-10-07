@@ -46,7 +46,7 @@ function RenderGeometry({ geometry, asMesh }) {
       <pointsMaterial
         vertexColors={hasColor}
         color={hasColor ? undefined : '#f4f4f5'}
-        size={0.026}
+        size={0.018}
         sizeAttenuation
       />
     </points>
@@ -65,7 +65,7 @@ export default function DesktopModelViewport({ result }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-sm font-semibold text-zinc-300">COLMAP reconstruction viewer</div>
+        <div className="text-sm font-semibold text-zinc-300">Dense reconstruction viewer</div>
         <div className="flex gap-2">
           {result.meshPlyBase64 && (
             <button
@@ -73,7 +73,7 @@ export default function DesktopModelViewport({ result }) {
               onClick={() => setMode('mesh')}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${mode === 'mesh' ? 'bg-white text-black' : 'bg-zinc-900 text-zinc-400'}`}
             >
-              Mesh
+              Dense mesh
             </button>
           )}
           <button
@@ -81,7 +81,7 @@ export default function DesktopModelViewport({ result }) {
             onClick={() => setMode('points')}
             className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${mode === 'points' ? 'bg-white text-black' : 'bg-zinc-900 text-zinc-400'}`}
           >
-            Sparse points
+            Dense points
           </button>
         </div>
       </div>

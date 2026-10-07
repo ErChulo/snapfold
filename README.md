@@ -4,47 +4,41 @@
 
 [![Deploy SnapFold to GitHub Pages](https://github.com/ErChulo/snapfold/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/ErChulo/snapfold/actions/workflows/deploy.yml)
 [![Build SnapFold Desktop](https://github.com/ErChulo/snapfold/actions/workflows/desktop.yml/badge.svg?branch=main)](https://github.com/ErChulo/snapfold/actions/workflows/desktop.yml)
-![Version](https://img.shields.io/badge/version-v0.3.0--alpha.3-blue)
+![Version](https://img.shields.io/badge/version-v0.3.0--alpha.4-blue)
 
 SnapFold turns overlapping photographs into a 3D reconstruction and is being developed toward curvature-aware printable paper/cardboard models.
 
-## v0.3.0-alpha.3: native reconstruction
+## v0.3.0-alpha.4: dense CPU reconstruction for Intel graphics
 
-The serious reconstruction path is now a **Tauri/React desktop application using native COLMAP**, separate from the earlier browser SfM experiment. Alpha.3 keeps the lower-memory Linux settings and fixes the field failure where the app reached 91% and waited indefinitely in optional sparse Delaunay meshing.
+The field machine reports Intel Tiger Lake-LP GT2 / UHD Graphics G4 and therefore has no NVIDIA CUDA device. SnapFold now uses COLMAP for the sparse camera solution and **OpenMVS 2.4.0 CPU Semi-Global Matching** for dense reconstruction and surface meshing.
 
 ```text
 choose local photos
-→ COLMAP SIFT feature extraction (CPU, 1 thread, 1200px cap, 4096 features/image)
+→ COLMAP CPU SIFT
 → exhaustive geometric matching
-→ incremental Structure-from-Motion
-→ triangulation + bundle adjustment
-→ colored sparse PLY
-→ Three.js point-cloud viewer immediately
-
-Sparse Delaunay meshing is no longer allowed to block the reconstruction result.
+→ incremental SfM + bundle adjustment
+→ COLMAP image undistortion
+→ OpenMVS import
+→ OpenMVS CPU SGM dense point cloud
+→ OpenMVS surface reconstruction
+→ Three.js dense mesh viewer
 ```
 
-No synthetic prism is used in the desktop reconstruction workflow.
+The desktop package bundles the official OpenMVS 2.4.0 Ubuntu x64 release and verifies its SHA-256 before packaging. The OpenMVS dense stage uses conservative resolution/thread settings for lower-memory laptops. Each native stage also has a hard timeout so SnapFold cannot wait forever at a fixed progress percentage.
+
+SnapFold reports success only after both a non-empty dense PLY and a mesh containing faces have been produced.
 
 ### Linux Mint 22.x / Ubuntu 24.04
 
-GitHub Actions publishes a Debian package in the prerelease:
-
-```text
-SnapFold Desktop v0.3.0-alpha.3
-```
-
-Install it with:
+Install the Debian package with:
 
 ```bash
-sudo apt install ./<downloaded-snapfold-package>.deb
+sudo apt install ./SnapFold_0.3.0-alpha.4_amd64.deb
 ```
 
-The package declares **`colmap` as an APT dependency**, so APT installs Ubuntu Noble's native COLMAP package automatically. Linux Mint 22.x uses the Ubuntu Noble package base.
+COLMAP remains an APT dependency. OpenMVS is bundled with SnapFold, so no separate OpenMVS installation is required.
 
-Then launch SnapFold, choose the photographs in Step 2, and press **Build real 3D reconstruction** in Step 3. The resulting COLMAP PLY is rendered directly in the app.
-
-The selected photographs are copied only into a local SnapFold workspace. They are not uploaded to SnapFold or a reconstruction service.
+The selected photographs remain local in the SnapFold reconstruction workspace.
 
 ## Capture protocol
 
@@ -52,11 +46,7 @@ Use overlapping photographs of a stationary object. Target roughly 60–80% over
 
 ## Web application
 
-The GitHub Pages build remains at:
-
-https://erchulo.github.io/snapfold/
-
-The web reconstruction code is retained as an experimental diagnostic. It is not the native COLMAP reconstruction path.
+The GitHub Pages build remains available as an experimental browser diagnostic. The production reconstruction path is the desktop application.
 
 ## Desktop architecture
 
@@ -64,30 +54,14 @@ The web reconstruction code is retained as an experimental diagnostic. It is not
 React / Vite
     ↓ Tauri invoke + progress events
 Rust / Tauri
-    ↓ local process
-COLMAP 3.9.1 CPU from Ubuntu Noble
     ↓
-PLY point cloud / optional PLY mesh
-    ↓
+COLMAP 3.9.1 CPU
+    ↓ calibrated sparse scene
+OpenMVS 2.4.0 CPU SGM
+    ↓ dense point cloud + mesh
 Three.js viewer
 ```
 
-## Development
-
-```bash
-sudo apt install colmap
-npm install
-npm run desktop:dev
-```
-
-Production Debian package:
-
-```bash
-npm run tauri build -- --bundles deb
-```
-
-The Debian package explicitly depends on `colmap`.
-
 ## Existing legacy papercraft pipeline
 
-The v0.1.x prism net, tabs, Letter layout, and vector PDF generator remain in the repository as regression/reference code. They are not presented as native reconstruction output.
+The v0.1.x prism net, tabs, Letter layout, and vector PDF generator remain in the repository as regression/reference code. They are not presented as reconstruction output.

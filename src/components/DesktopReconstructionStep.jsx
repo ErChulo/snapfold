@@ -22,10 +22,11 @@ export default function DesktopReconstructionStep({
     <section className="space-y-6">
       <div>
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Step 3 · Native reconstruction</p>
-        <h2 className="mt-2 text-2xl font-semibold text-white">COLMAP Structure-from-Motion</h2>
+        <h2 className="mt-2 text-2xl font-semibold text-white">COLMAP + OpenMVS dense reconstruction</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
-          This path uses memory-limited COLMAP SIFT features, exhaustive geometric matching, incremental SfM, and COLMAP's bundle adjustment.
-          As soon as the verified COLMAP PLY is exported, SnapFold displays it. Surface meshing no longer blocks the reconstruction result.
+          COLMAP solves the camera poses and bundle adjustment. OpenMVS then performs CPU Semi-Global Matching,
+          builds a dense point cloud, and reconstructs the surface mesh. This path is designed for the Intel-only
+          Linux machine used in the field test and does not require NVIDIA CUDA.
         </p>
       </div>
 
@@ -36,7 +37,7 @@ export default function DesktopReconstructionStep({
           disabled={running || photoPaths.length < 3}
           className="rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {running ? 'Reconstructing…' : result ? 'Run reconstruction again' : 'Build real 3D reconstruction'}
+          {running ? 'Reconstructing…' : result ? 'Run reconstruction again' : 'Build dense 3D reconstruction'}
         </button>
         <span className="text-xs text-zinc-500">{photoPaths.length} photographs selected</span>
       </div>
@@ -54,6 +55,11 @@ export default function DesktopReconstructionStep({
             />
           </div>
           {status.detail && <div className="mt-3 truncate font-mono text-[11px] text-zinc-600">{status.detail}</div>}
+          {running && status.stage === 'dense' && (
+            <div className="mt-3 text-xs leading-5 text-zinc-500">
+              Dense stereo is CPU-only on this Intel machine and is the longest stage. SnapFold applies a hard timeout rather than waiting indefinitely.
+            </div>
+          )}
         </div>
       )}
 
@@ -67,7 +73,7 @@ export default function DesktopReconstructionStep({
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Metric label="Input photographs" value={result.inputImageCount} />
-            <Metric label="Sparse 3D points" value={result.pointCount.toLocaleString()} />
+            <Metric label="Dense 3D points" value={result.pointCount.toLocaleString()} />
             <Metric label="Mesh faces" value={result.faceCount.toLocaleString()} />
             <Metric label="Engine" value={result.engineLabel} />
           </div>
@@ -75,8 +81,7 @@ export default function DesktopReconstructionStep({
           <DesktopModelViewport result={result} />
 
           <div className="rounded-2xl border border-emerald-900 bg-emerald-950/20 p-5 text-sm leading-6 text-emerald-200">
-            This geometry came from the selected photographs through COLMAP. SnapFold is showing the verified sparse point cloud immediately.
-            Surface generation is intentionally deferred to a later stage instead of blocking or fabricating a mesh.
+            This is a dense photo-derived reconstruction. COLMAP calibrated the cameras and OpenMVS CPU SGM generated the dense cloud and mesh.
           </div>
 
           <div className="rounded-2xl border border-zinc-800 bg-black p-4 text-xs leading-5 text-zinc-500">
@@ -87,7 +92,7 @@ export default function DesktopReconstructionStep({
 
       {!result && !running && (
         <div className="rounded-2xl border border-zinc-800 bg-black p-5 text-sm leading-6 text-zinc-500">
-          The next screen is deliberately not a prism. Reconstruction must succeed here before SnapFold builds downstream paper geometry.
+          SnapFold will not report success unless a dense point cloud and a mesh with faces are both produced.
         </div>
       )}
     </section>

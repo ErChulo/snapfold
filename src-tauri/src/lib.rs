@@ -1,10 +1,12 @@
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde::Serialize;
 use std::{
-    fs,
+    env,
+    fs::{self, File},
     path::{Path, PathBuf},
-    process::Command,
-    time::{SystemTime, UNIX_EPOCH},
+    process::{Command, Stdio},
+    thread,
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -71,30 +73,19 @@ fn sanitize_project_name(value: &str) -> String {
     }
 }
 
+fn sanitize_stage(value: &str) -> String {
+    value
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect()
+}
+
 fn allowed_extension(path: &Path) -> Option<String> {
     let ext = path.extension()?.to_string_lossy().to_ascii_lowercase();
     match ext.as_str() {
         "jpg" | "jpeg" | "png" | "tif" | "tiff" => Some(ext),
         _ => None,
     }
-}
-
-fn find_colmap(_app: &AppHandle) -> Result<(PathBuf, Option<PathBuf>), String> {
-    for candidate in [PathBuf::from("/usr/bin/colmap"), PathBuf::from("colmap")] {
-        if candidate.is_absolute() && !candidate.exists() {
-            continue;
-        }
-
-        let output = Command::new(&candidate).arg("-h").output();
-        if matches!(output, Ok(ref value) if value.status.success()) {
-            return Ok((candidate, None));
-        }
-    }
-
-    Err(
-        "COLMAP was not found. Install SnapFold with its Debian package so the required 'colmap' dependency is installed automatically."
-            .to_string(),
-    )
 }
 
 fn tail(value: &str, max_chars: usize) -> String {
@@ -111,48 +102,175 @@ fn tail(value: &str, max_chars: usize) -> String {
         .collect()
 }
 
-fn run_colmap(
+fn find_colmap() -> Result<PathBuf, String> {
+    for candidate in [PathBuf::from("/usr/bin/colmap"), PathBuf::from("colmap")] {
+        if candidate.is_absolute() && !candidate.exists() {
+            continue;
+        }
+        if Command::new(&candidate).arg("-h").output().is_ok() {
+            return Ok(candidate);
+        }
+    }
+    Err(
+        "COLMAP was not found. Install SnapFold with its Debian package so the required 'colmap' dependency is installed automatically."
+            .to_string(),
+    )
+}
+
+fn find_named_file(root: &Path, name: &str, depth: usize) -> Option<PathBuf> {
+    if depth == 0 || !root.is_dir() {
+        return None;
+    }
+    let entries = fs::read_dir(root).ok()?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_file() && path.file_name().is_some_and(|v| v == name) {
+            return Some(path);
+        }
+        if path.is_dir() {
+            if let Some(found) = find_named_file(&path, name, depth - 1) {
+                return Some(found);
+            }
+        }
+    }
+    None
+}
+
+fn find_openmvs_tool(app: &AppHandle, name: &str) -> Result<(PathBuf, Option<PathBuf>), String> {
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        if let Some(tool) = find_named_file(&resource_dir, name, 8) {
+            return Ok((tool, Some(resource_dir)));
+        }
+    }
+
+    if Command::new(name).arg("-h").output().is_ok() {
+        return Ok((PathBuf::from(name), None));
+    }
+
+    Err(format!(
+        "The bundled OpenMVS tool '{name}' was not found. Reinstall SnapFold v0.3.0-alpha.4."
+    ))
+}
+
+fn collect_library_dirs(root: &Path, depth: usize, dirs: &mut Vec<PathBuf>) {
+    if depth == 0 || !root.is_dir() {
+        return;
+    }
+    let Ok(entries) = fs::read_dir(root) else {
+        return;
+    };
+    let mut this_dir_has_library = false;
+    let mut child_dirs = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            child_dirs.push(path);
+            continue;
+        }
+        let name = path
+            .file_name()
+            .map(|v| v.to_string_lossy())
+            .unwrap_or_default();
+        if name.ends_with(".so") || name.contains(".so.") {
+            this_dir_has_library = true;
+        }
+    }
+    if this_dir_has_library {
+        dirs.push(root.to_path_buf());
+    }
+    for child in child_dirs {
+        collect_library_dirs(&child, depth - 1, dirs);
+    }
+}
+
+fn run_tool(
     app: &AppHandle,
     executable: &Path,
-    env_root: Option<&Path>,
+    resource_root: Option<&Path>,
     workspace: &Path,
     stage: &str,
     percent: f64,
     message: &str,
     args: &[String],
+    thread_limit: usize,
+    timeout: Duration,
 ) -> Result<String, String> {
     emit_progress(
         app,
         stage,
         percent,
         message,
-        Some(format!("colmap {}", args.join(" "))),
+        Some(format!("{} {}", executable.display(), args.join(" "))),
     );
 
+    let stage_safe = sanitize_stage(stage);
+    let stdout_path = workspace.join(format!(".snapfold-{stage_safe}-stdout.log"));
+    let stderr_path = workspace.join(format!(".snapfold-{stage_safe}-stderr.log"));
+
+    let stdout_file = File::create(&stdout_path)
+        .map_err(|e| format!("{message}: could not create stdout log: {e}"))?;
+    let stderr_file = File::create(&stderr_path)
+        .map_err(|e| format!("{message}: could not create stderr log: {e}"))?;
+
     let mut command = Command::new(executable);
-    command.args(args).current_dir(workspace);
-    let _ = env_root;
-    command.env("QT_QPA_PLATFORM", "offscreen");
-    // Keep native numerical libraries from multiplying the memory footprint
-    // behind COLMAP's own thread controls. This is deliberately conservative
-    // for laptops and lower-memory Linux machines.
-    command.env("OMP_NUM_THREADS", "1");
-    command.env("OPENBLAS_NUM_THREADS", "1");
-    command.env("MKL_NUM_THREADS", "1");
+    command
+        .args(args)
+        .current_dir(workspace)
+        .stdout(Stdio::from(stdout_file))
+        .stderr(Stdio::from(stderr_file))
+        .env("QT_QPA_PLATFORM", "offscreen")
+        .env("OMP_NUM_THREADS", thread_limit.to_string())
+        .env("OPENBLAS_NUM_THREADS", thread_limit.to_string())
+        .env("MKL_NUM_THREADS", thread_limit.to_string());
 
-    let output = command
-        .output()
-        .map_err(|e| format!("{message}: could not launch COLMAP: {e}"))?;
+    if let Some(root) = resource_root {
+        let mut lib_dirs = Vec::new();
+        collect_library_dirs(root, 8, &mut lib_dirs);
+        if let Some(existing) = env::var_os("LD_LIBRARY_PATH") {
+            lib_dirs.extend(env::split_paths(&existing));
+        }
+        if let Ok(joined) = env::join_paths(lib_dirs) {
+            command.env("LD_LIBRARY_PATH", joined);
+        }
+    }
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
+    let mut child = command
+        .spawn()
+        .map_err(|e| format!("{message}: could not launch {}: {e}", executable.display()))?;
+
+    let started = Instant::now();
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) => {
+                if started.elapsed() >= timeout {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    let stdout = fs::read_to_string(&stdout_path).unwrap_or_default();
+                    let stderr = fs::read_to_string(&stderr_path).unwrap_or_default();
+                    return Err(format!(
+                        "{message} exceeded the {} minute safety limit and was stopped.\n{}",
+                        timeout.as_secs() / 60,
+                        tail(&format!("{stdout}\n{stderr}"), 7000)
+                    ));
+                }
+                thread::sleep(Duration::from_millis(250));
+            }
+            Err(e) => {
+                let _ = child.kill();
+                return Err(format!("{message}: failed while waiting for process: {e}"));
+            }
+        }
+    };
+
+    let stdout = fs::read_to_string(&stdout_path).unwrap_or_default();
+    let stderr = fs::read_to_string(&stderr_path).unwrap_or_default();
     let combined = format!("{stdout}\n{stderr}");
 
-    if !output.status.success() {
+    if !status.success() {
         return Err(format!(
-            "{message} failed with status {}.\n{}",
-            output.status,
-            tail(&combined, 6000)
+            "{message} failed with status {status}.\n{}",
+            tail(&combined, 7000)
         ));
     }
 
@@ -161,7 +279,6 @@ fn run_colmap(
 
 fn best_sparse_model(sparse_root: &Path) -> Result<PathBuf, String> {
     let mut candidates = Vec::new();
-
     let entries = fs::read_dir(sparse_root)
         .map_err(|e| format!("COLMAP produced no readable sparse directory: {e}"))?;
 
@@ -229,7 +346,10 @@ fn reconstruct_blocking(
         None,
     );
 
-    let (colmap, env_root) = find_colmap(&app)?;
+    let colmap = find_colmap()?;
+    let (interface_colmap, openmvs_root) = find_openmvs_tool(&app, "InterfaceCOLMAP")?;
+    let (densify, _) = find_openmvs_tool(&app, "DensifyPointCloud")?;
+    let (reconstruct_mesh, _) = find_openmvs_tool(&app, "ReconstructMesh")?;
 
     let root = app
         .path()
@@ -251,6 +371,7 @@ fn reconstruct_blocking(
     ));
     let images_dir = workspace.join("images");
     let sparse_dir = workspace.join("sparse");
+    let dense_dir = workspace.join("dense");
     fs::create_dir_all(&images_dir)
         .map_err(|e| format!("Could not create images directory: {e}"))?;
     fs::create_dir_all(&sparse_dir)
@@ -281,13 +402,13 @@ fn reconstruct_blocking(
     let images_s = images_dir.to_string_lossy().to_string();
     let sparse_s = sparse_dir.to_string_lossy().to_string();
 
-    run_colmap(
+    run_tool(
         &app,
         &colmap,
-        env_root.as_deref(),
+        None,
         &workspace,
         "features",
-        10.0,
+        8.0,
         "Extracting COLMAP SIFT features on CPU…",
         &[
             "feature_extractor".into(),
@@ -308,16 +429,18 @@ fn reconstruct_blocking(
             "--SiftExtraction.max_num_features".into(),
             "4096".into(),
         ],
+        1,
+        Duration::from_secs(30 * 60),
     )?;
 
-    run_colmap(
+    run_tool(
         &app,
         &colmap,
-        env_root.as_deref(),
+        None,
         &workspace,
         "matching",
-        32.0,
-        "Exhaustively matching the photographs…",
+        22.0,
+        "Matching photographs geometrically…",
         &[
             "exhaustive_matcher".into(),
             "--database_path".into(),
@@ -329,69 +452,184 @@ fn reconstruct_blocking(
             "--SiftMatching.guided_matching".into(),
             "1".into(),
         ],
+        1,
+        Duration::from_secs(30 * 60),
     )?;
 
-    run_colmap(
+    run_tool(
         &app,
         &colmap,
-        env_root.as_deref(),
+        None,
         &workspace,
         "mapping",
-        56.0,
+        38.0,
         "Solving camera poses, tracks, triangulation, and bundle adjustment…",
         &[
             "mapper".into(),
             "--database_path".into(),
             database_s,
             "--image_path".into(),
-            images_s,
+            images_s.clone(),
             "--output_path".into(),
             sparse_s,
         ],
+        1,
+        Duration::from_secs(45 * 60),
     )?;
 
     let model_dir = best_sparse_model(&sparse_dir)?;
-    let point_ply = workspace.join("colmap-sparse-points.ply");
+    let sparse_ply = workspace.join("colmap-sparse-points.ply");
 
-    run_colmap(
+    run_tool(
         &app,
         &colmap,
-        env_root.as_deref(),
+        None,
         &workspace,
-        "export",
-        84.0,
-        "Exporting the COLMAP point cloud…",
+        "sparse_export",
+        50.0,
+        "Exporting the calibrated COLMAP sparse model…",
         &[
             "model_converter".into(),
             "--input_path".into(),
             model_dir.to_string_lossy().to_string(),
             "--output_path".into(),
-            point_ply.to_string_lossy().to_string(),
+            sparse_ply.to_string_lossy().to_string(),
             "--output_type".into(),
             "PLY".into(),
         ],
+        1,
+        Duration::from_secs(10 * 60),
     )?;
 
-    let point_bytes = fs::read(&point_ply)
-        .map_err(|e| format!("Could not read COLMAP PLY output: {e}"))?;
-    let (point_count, _) = parse_ply_counts(&point_bytes);
+    fs::create_dir_all(&dense_dir)
+        .map_err(|e| format!("Could not create dense workspace: {e}"))?;
 
-    if point_count == 0 {
-        return Err("COLMAP produced a model, but the exported point cloud contains zero vertices.".to_string());
+    run_tool(
+        &app,
+        &colmap,
+        None,
+        &workspace,
+        "undistort",
+        56.0,
+        "Undistorting calibrated photographs for dense reconstruction…",
+        &[
+            "image_undistorter".into(),
+            "--image_path".into(),
+            images_s,
+            "--input_path".into(),
+            model_dir.to_string_lossy().to_string(),
+            "--output_path".into(),
+            dense_dir.to_string_lossy().to_string(),
+            "--output_type".into(),
+            "COLMAP".into(),
+            "--max_image_size".into(),
+            "1600".into(),
+        ],
+        1,
+        Duration::from_secs(20 * 60),
+    )?;
+
+    run_tool(
+        &app,
+        &interface_colmap,
+        openmvs_root.as_deref(),
+        &workspace,
+        "openmvs_import",
+        62.0,
+        "Transferring calibrated cameras into OpenMVS…",
+        &[
+            "-i".into(),
+            dense_dir.to_string_lossy().to_string(),
+            "-o".into(),
+            "scene.mvs".into(),
+            "--image-folder".into(),
+            dense_dir.join("images").to_string_lossy().to_string(),
+            "--max-threads".into(),
+            "1".into(),
+        ],
+        1,
+        Duration::from_secs(15 * 60),
+    )?;
+
+    run_tool(
+        &app,
+        &densify,
+        openmvs_root.as_deref(),
+        &workspace,
+        "dense",
+        68.0,
+        "Building a dense CPU stereo reconstruction with OpenMVS SGM…",
+        &[
+            "scene.mvs".into(),
+            "-o".into(),
+            "scene_dense.mvs".into(),
+            "--fusion-mode".into(),
+            "-2".into(),
+            "--resolution-level".into(),
+            "2".into(),
+            "--max-resolution".into(),
+            "1200".into(),
+            "--min-resolution".into(),
+            "320".into(),
+            "--number-views".into(),
+            "4".into(),
+            "--max-threads".into(),
+            "2".into(),
+            "--estimate-colors".into(),
+            "2".into(),
+            "--estimate-normals".into(),
+            "2".into(),
+        ],
+        2,
+        Duration::from_secs(90 * 60),
+    )?;
+
+    let dense_ply = workspace.join("scene_dense.ply");
+    let dense_bytes = fs::read(&dense_ply)
+        .map_err(|e| format!("OpenMVS reported dense reconstruction success, but scene_dense.ply could not be read: {e}"))?;
+    let (point_count, _) = parse_ply_counts(&dense_bytes);
+    if point_count < 100 {
+        return Err(format!(
+            "OpenMVS dense reconstruction produced only {point_count} points. The photographs did not yield a usable dense model."
+        ));
     }
 
-    // v0.3.0-alpha.3 deliberately returns the valid COLMAP reconstruction
-    // immediately after PLY export. Sparse Delaunay meshing is not part of
-    // this critical path because it can be very slow or non-terminating for
-    // some datasets and must never hide an already successful reconstruction.
-    let mesh_ply_base64 = None;
-    let face_count = 0usize;
+    run_tool(
+        &app,
+        &reconstruct_mesh,
+        openmvs_root.as_deref(),
+        &workspace,
+        "mesh",
+        90.0,
+        "Reconstructing the dense surface mesh…",
+        &[
+            "scene_dense.mvs".into(),
+            "-p".into(),
+            "scene_dense.ply".into(),
+            "-o".into(),
+            "scene_mesh.mvs".into(),
+            "--max-threads".into(),
+            "2".into(),
+            "--target-face-num".into(),
+            "200000".into(),
+        ],
+        2,
+        Duration::from_secs(60 * 60),
+    )?;
+
+    let mesh_ply = workspace.join("scene_mesh.ply");
+    let mesh_bytes = fs::read(&mesh_ply)
+        .map_err(|e| format!("OpenMVS reported mesh success, but scene_mesh.ply could not be read: {e}"))?;
+    let (_, face_count) = parse_ply_counts(&mesh_bytes);
+    if face_count == 0 {
+        return Err("OpenMVS produced a mesh file with zero faces.".to_string());
+    }
 
     emit_progress(
         &app,
         "complete",
         100.0,
-        "COLMAP reconstruction ready.",
+        "Dense OpenMVS reconstruction ready.",
         None,
     );
 
@@ -399,10 +637,10 @@ fn reconstruct_blocking(
         input_image_count: image_paths.len(),
         point_count,
         face_count,
-        point_ply_base64: BASE64.encode(point_bytes),
-        mesh_ply_base64,
+        point_ply_base64: BASE64.encode(dense_bytes),
+        mesh_ply_base64: Some(BASE64.encode(mesh_bytes)),
         workspace_path: workspace.to_string_lossy().to_string(),
-        engine_label: "COLMAP 3.9.1 CPU · low-memory SfM".to_string(),
+        engine_label: "COLMAP 3.9.1 + OpenMVS 2.4.0 CPU SGM".to_string(),
     })
 }
 
