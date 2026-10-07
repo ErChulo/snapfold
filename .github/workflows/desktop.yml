@@ -150,7 +150,7 @@ jobs:
           LIB_DIRS="$(find "$GITHUB_WORKSPACE/src-tauri/openmvs" -type f -name '*.so*' -printf '%h\n' | sort -u | paste -sd: -)"
           export LD_LIBRARY_PATH="$LIB_DIRS:${LD_LIBRARY_PATH:-}"
 
-          "$INTERFACE" -i dense -o scene.mvs --image-folder dense/images --max-threads 1
+          "$INTERFACE" -i dense -o scene.mvs --image-folder images --max-threads 1
 
           OMP_NUM_THREADS=2 "$DENSIFY" scene.mvs \
             -o scene_dense.mvs \
