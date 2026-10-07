@@ -551,61 +551,38 @@ fn reconstruct_blocking(
         Duration::from_secs(15 * 60),
     )?;
 
-    // OpenMVS CPU SGM is explicitly two-stage:
-    //   -1 computes and saves disparity maps
-    //   -2 fuses those saved disparity maps into a dense point cloud.
-    // Calling -2 directly produces no dense depths.
+    // OpenMVS has a native CPU PatchMatch implementation. When no CUDA
+    // device is available, fusion-mode 0 falls back to this CPU path.
+    // This produces actual depth maps and a fused dense cloud, unlike the
+    // experimental SGM path which proved too sparse on the validation dataset.
     run_tool(
         &app,
         &densify,
         openmvs_root.as_deref(),
         &workspace,
-        "sgm_disparity",
+        "dense_patchmatch",
         68.0,
-        "Computing CPU SGM disparity maps with OpenMVS…",
-        &[
-            "scene.mvs".into(),
-            "-o".into(),
-            "scene_sgm.mvs".into(),
-            "--fusion-mode".into(),
-            "-1".into(),
-            "--resolution-level".into(),
-            "2".into(),
-            "--max-resolution".into(),
-            "1200".into(),
-            "--min-resolution".into(),
-            "320".into(),
-            "--number-views".into(),
-            "4".into(),
-            "--max-threads".into(),
-            "2".into(),
-        ],
-        2,
-        Duration::from_secs(90 * 60),
-    )?;
-
-    run_tool(
-        &app,
-        &densify,
-        openmvs_root.as_deref(),
-        &workspace,
-        "sgm_fusion",
-        82.0,
-        "Fusing OpenMVS SGM disparity maps into a dense point cloud…",
+        "Building dense depth maps with OpenMVS CPU PatchMatch…",
         &[
             "scene.mvs".into(),
             "-o".into(),
             "scene_dense.mvs".into(),
             "--fusion-mode".into(),
-            "-2".into(),
+            "0".into(),
             "--resolution-level".into(),
             "2".into(),
             "--max-resolution".into(),
             "1200".into(),
             "--min-resolution".into(),
             "320".into(),
+            "--sub-resolution-levels".into(),
+            "1".into(),
             "--number-views".into(),
             "4".into(),
+            "--iters".into(),
+            "2".into(),
+            "--geometric-iters".into(),
+            "1".into(),
             "--max-threads".into(),
             "2".into(),
             "--estimate-colors".into(),
@@ -614,7 +591,7 @@ fn reconstruct_blocking(
             "2".into(),
         ],
         2,
-        Duration::from_secs(45 * 60),
+        Duration::from_secs(120 * 60),
     )?;
 
     let dense_ply = workspace.join("scene_dense.ply");
