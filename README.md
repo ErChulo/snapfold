@@ -19,12 +19,12 @@ choose local photos
 → incremental SfM + bundle adjustment
 → COLMAP image undistortion
 → OpenMVS import
-→ OpenMVS CPU SGM dense point cloud
+→ OpenMVS CPU SGM disparity maps\n→ OpenMVS CPU disparity fusion → dense point cloud
 → OpenMVS surface reconstruction
 → Three.js dense mesh viewer
 ```
 
-The desktop package bundles the official OpenMVS 2.4.0 Ubuntu x64 release and verifies its SHA-256 before packaging. The OpenMVS dense stage uses conservative resolution/thread settings for lower-memory laptops. Each native stage also has a hard timeout so SnapFold cannot wait forever at a fixed progress percentage.
+The desktop package bundles the official OpenMVS 2.4.0 Ubuntu x64 release and verifies its SHA-256 before packaging. OpenMVS CPU SGM is run in its required two-stage form: first disparity-map estimation (`fusion-mode -1`), then disparity fusion (`fusion-mode -2`). The dense stages use conservative resolution/thread settings for lower-memory laptops. Each native stage also has a hard timeout so SnapFold cannot wait forever at a fixed progress percentage.
 
 SnapFold reports success only after both a non-empty dense PLY and a mesh containing faces have been produced.
 
