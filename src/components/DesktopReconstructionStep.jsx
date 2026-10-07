@@ -24,7 +24,7 @@ export default function DesktopReconstructionStep({
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Step 3 · Native reconstruction</p>
         <h2 className="mt-2 text-2xl font-semibold text-white">COLMAP + OpenMVS dense reconstruction</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
-          COLMAP solves the camera poses and bundle adjustment. OpenMVS then performs CPU Semi-Global Matching,
+          COLMAP solves the camera poses and bundle adjustment. OpenMVS then performs CPU PatchMatch,
           builds a dense point cloud, and reconstructs the surface mesh. This path is designed for the Intel-only
           Linux machine used in the field test and does not require NVIDIA CUDA.
         </p>
@@ -57,7 +57,7 @@ export default function DesktopReconstructionStep({
           {status.detail && <div className="mt-3 truncate font-mono text-[11px] text-zinc-600">{status.detail}</div>}
           {running && status.stage === 'dense' && (
             <div className="mt-3 text-xs leading-5 text-zinc-500">
-              Dense stereo is CPU-only on this Intel machine and is the longest stage. SnapFold applies a hard timeout rather than waiting indefinitely.
+              Dense PatchMatch is CPU-only on this Intel machine and is the longest stage. SnapFold applies a hard timeout rather than waiting indefinitely.
             </div>
           )}
         </div>
@@ -81,7 +81,7 @@ export default function DesktopReconstructionStep({
           <DesktopModelViewport result={result} />
 
           <div className="rounded-2xl border border-emerald-900 bg-emerald-950/20 p-5 text-sm leading-6 text-emerald-200">
-            This is a dense photo-derived reconstruction. COLMAP calibrated the cameras and OpenMVS CPU SGM generated the dense cloud and mesh.
+            This is a dense photo-derived reconstruction. COLMAP calibrated the cameras and OpenMVS CPU PatchMatch generated the dense cloud and mesh.
           </div>
 
           <div className="rounded-2xl border border-zinc-800 bg-black p-4 text-xs leading-5 text-zinc-500">
