@@ -1,0 +1,2 @@
+function e(e,t=!1){return window.__TAURI_INTERNALS__.transformCallback(e,t)}async function t(e,t={},n){return window.__TAURI_INTERNALS__.invoke(e,t,n)}export{t as invoke,e as transformCallback};
+//# sourceMappingURL=core-0_kFspMt.js.map

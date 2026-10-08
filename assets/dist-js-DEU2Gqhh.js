@@ -1,0 +1,2 @@
+import{invoke as e}from"./core-0_kFspMt.js";async function t(t={}){return typeof t==`object`&&Object.freeze(t),await e(`plugin:dialog|open`,{options:t})}export{t as open};
+//# sourceMappingURL=dist-js-DEU2Gqhh.js.map

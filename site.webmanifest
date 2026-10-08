@@ -1,0 +1,8 @@
+{
+  "name": "SnapFold",
+  "short_name": "SnapFold",
+  "icons": [{"src":"brand/snapfold-icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}],
+  "theme_color": "#000000",
+  "background_color": "#000000",
+  "display": "standalone"
+}
