@@ -222,9 +222,10 @@ jobs:
           dpkg-deb -I "$DEB" | tee /tmp/deb-info.txt
           grep -i "Depends:.*colmap" /tmp/deb-info.txt
           file "$DEB"
-          dpkg-deb -c "$DEB" | grep -q "InterfaceCOLMAP"
-          dpkg-deb -c "$DEB" | grep -q "DensifyPointCloud"
-          dpkg-deb -c "$DEB" | grep -q "ReconstructMesh"
+          dpkg-deb -c "$DEB" > /tmp/deb-contents.txt
+          grep -q "InterfaceCOLMAP" /tmp/deb-contents.txt
+          grep -q "DensifyPointCloud" /tmp/deb-contents.txt
+          grep -q "ReconstructMesh" /tmp/deb-contents.txt
           sha256sum "$DEB" > SnapFold-desktop-SHA256SUMS.txt
           cat SnapFold-desktop-SHA256SUMS.txt
 
